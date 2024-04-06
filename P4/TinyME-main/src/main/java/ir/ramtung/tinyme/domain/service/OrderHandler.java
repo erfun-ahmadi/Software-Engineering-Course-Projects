@@ -83,6 +83,8 @@ public class OrderHandler {
         List<String> errors = new LinkedList<>();
         if (enterOrderRq.getOrderId() <= 0)
             errors.add(Message.INVALID_ORDER_ID);
+        if (enterOrderRq.getminimumExecutionQuantity() < 0 || enterOrderRq.getminimumExecutionQuantity() > enterOrderRq.getQuantity())
+            errors.add(Message.INVALID_ORDER_MINIMUM_EXECUTION_QUANTITY);
         if (enterOrderRq.getQuantity() <= 0)
             errors.add(Message.ORDER_QUANTITY_NOT_POSITIVE);
         if (enterOrderRq.getPrice() <= 0)

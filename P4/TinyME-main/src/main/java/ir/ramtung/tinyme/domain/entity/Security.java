@@ -21,6 +21,8 @@ public class Security {
     @Builder.Default
     private OrderBook orderBook = new OrderBook();
 
+    private boolean
+
     public MatchResult newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, Matcher matcher) {
         if (enterOrderRq.getSide() == Side.SELL &&
                 !shareholder.hasEnoughPositionsOn(this,
