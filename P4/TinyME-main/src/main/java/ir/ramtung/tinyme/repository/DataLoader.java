@@ -241,6 +241,7 @@ public class DataLoader {
                 .add(order.getSide().toString())
                 .add(String.valueOf(order.getQuantity()))
                 .add(String.valueOf(order.getPrice()))
+                .add(String.valueOf(order.getMinimumExecutionQuantity()))
                 .add(String.valueOf(order.getBroker().getBrokerId()))
                 .add(String.valueOf(order.getShareholder().getShareholderId()))
                 .add(order.getEntryTime().toString());
