@@ -45,7 +45,7 @@ public class Matcher {
         }
         int SumOfTradesQuantities = getSumOfTradesQuantities(trades);
 
-        return x(SumOfTradesQuantities , newOrder , trades);
+        return validateMinimumExecutionQuantity(SumOfTradesQuantities , newOrder , trades);
     }
 
     private void rollbackTrades(Order newOrder, LinkedList<Trade> trades){
@@ -111,7 +111,7 @@ public class Matcher {
         return SumOfTradesQuantities;
     }
 
-    private MatchResult x(int SumOfTradesQuantities , Order newOrder , LinkedList<Trade> trades){
+    private MatchResult validateMinimumExecutionQuantity(int SumOfTradesQuantities , Order newOrder , LinkedList<Trade> trades){
         if (newOrder.getMinimumExecutionQuantity() > SumOfTradesQuantities){
             rollbackTrades(newOrder, trades);
             return MatchResult.notEnoughQuantitiesTraded();
