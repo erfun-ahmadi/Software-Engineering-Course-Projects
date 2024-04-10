@@ -45,14 +45,13 @@ public class Matcher {
         }
         int SumOfTradesQuantities = getSumOfTradesQuantities(trades);
 
-        return validateMinimumExecutionQuantity(SumOfTradesQuantities , newOrder , trades);
+        return validateMinimumExecutionQuantity(SumOfTradesQuantities, newOrder, trades);
     }
 
-    private void rollbackTrades(Order newOrder, LinkedList<Trade> trades){
-        if(newOrder.getSide() == Side.BUY){
+    private void rollbackTrades(Order newOrder, LinkedList<Trade> trades) {
+        if (newOrder.getSide() == Side.BUY) {
             buyerRollbackTrades(newOrder, trades);
-        }
-        else{
+        } else {
             sellerRollbackTrades(newOrder, trades);
         }
     }
@@ -103,7 +102,7 @@ public class Matcher {
         return result;
     }
 
-    private int getSumOfTradesQuantities(LinkedList<Trade> trades){
+    private int getSumOfTradesQuantities(LinkedList<Trade> trades) {
         int SumOfTradesQuantities = 0;
         for (Trade trade : trades) {
             SumOfTradesQuantities += trade.getQuantity();
@@ -111,14 +110,12 @@ public class Matcher {
         return SumOfTradesQuantities;
     }
 
-    private MatchResult validateMinimumExecutionQuantity(int SumOfTradesQuantities , Order newOrder , LinkedList<Trade> trades){
-        if (newOrder.getMinimumExecutionQuantity() > SumOfTradesQuantities){
+    private MatchResult validateMinimumExecutionQuantity(int SumOfTradesQuantities, Order newOrder, LinkedList<Trade> trades) {
+        if (newOrder.getMinimumExecutionQuantity() > SumOfTradesQuantities) {
             rollbackTrades(newOrder, trades);
             return MatchResult.notEnoughQuantitiesTraded();
-        }
-        else{
+        } else {
             return MatchResult.executed(newOrder, trades);
         }
     }
-
 }
