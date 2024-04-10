@@ -140,7 +140,7 @@ public class MatcherTest {
                 new Order(1, security, Side.SELL, 100, 10, 0, broker, shareholder)
         );
 
-        Order order = new IcebergOrder(1, security, BUY, 120 , 10, 0, broker, shareholder, 40 );
+        Order order = new IcebergOrder(1, security, BUY, 120, 10, 0, broker, shareholder, 40);
         MatchResult result = matcher.execute(order);
 
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
@@ -149,5 +149,42 @@ public class MatcherTest {
         assertThat(security.getOrderBook().getBuyQueue()).hasSize(1);
         assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(20);
 
+    }
+
+    @Test
+    void minimum_execution_quantity_not_met_for_sell_order_rolls_back() {
+        Order order = new Order(11, security, Side.SELL, 500, 15500, 400, broker, shareholder);
+        MatchResult result = matcher.match(order);
+        assertThat(result.outcome()).isEqualTo(MatchingOutcome.NOT_ENOUGH_QUANTITIES_TRADED);
+        assertThat(result.trades()).isEmpty();
+        assertThat(security.getOrderBook().getBuyQueue().get(0).getQuantity()).isEqualTo(orders.get(0).getQuantity());
+        assertThat(security.getOrderBook().getBuyQueue().get(1).getQuantity()).isEqualTo(orders.get(1).getQuantity());
+    }
+
+    @Test
+    void minimum_execution_quantity_not_met_for_buy_order_rolls_back() {
+        Order order = new Order(11, security, BUY, 2000, 15810, 1500, broker, shareholder);
+        MatchResult result = matcher.match(order);
+        assertThat(result.outcome()).isEqualTo(MatchingOutcome.NOT_ENOUGH_QUANTITIES_TRADED);
+        assertThat(result.trades()).isEmpty();
+        assertThat(security.getOrderBook().getSellQueue().get(0).getQuantity()).isEqualTo(orders.get(5).getQuantity());
+        assertThat(security.getOrderBook().getSellQueue().get(1).getQuantity()).isEqualTo(orders.get(6).getQuantity());
+        assertThat(security.getOrderBook().getSellQueue().get(2).getQuantity()).isEqualTo(orders.get(7).getQuantity());
+    }
+
+    @Test
+    void new_sell_order_with_minimum_execution_quantity_executes() {
+        Order order = new Order(11, security, Side.SELL, 500, 15500, 300, broker, shareholder);
+        MatchResult result = matcher.match(order);
+        assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
+        assertThat(result.trades().size()).isEqualTo(2);
+    }
+
+    @Test
+    void new_buy_order_with_minimum_execution_quantity_executes() {
+        Order order = new Order(11, security, BUY, 700, 15810, 500, broker, shareholder);
+        MatchResult result = matcher.match(order);
+        assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
+        assertThat(result.trades().size()).isEqualTo(3);
     }
 }
