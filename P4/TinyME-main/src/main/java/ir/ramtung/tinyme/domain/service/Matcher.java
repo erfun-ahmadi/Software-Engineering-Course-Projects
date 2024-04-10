@@ -44,7 +44,6 @@ public class Matcher {
             }
         }
         int SumOfTradesQuantities = getSumOfTradesQuantities(trades);
-
         return validateMinimumExecutionQuantity(SumOfTradesQuantities, newOrder, trades);
     }
 
@@ -103,11 +102,9 @@ public class Matcher {
     }
 
     private int getSumOfTradesQuantities(LinkedList<Trade> trades) {
-        int SumOfTradesQuantities = 0;
-        for (Trade trade : trades) {
-            SumOfTradesQuantities += trade.getQuantity();
-        }
-        return SumOfTradesQuantities;
+        return trades.stream()
+                .mapToInt(Trade::getQuantity)
+                .sum();
     }
 
     private MatchResult validateMinimumExecutionQuantity(int SumOfTradesQuantities, Order newOrder, LinkedList<Trade> trades) {
