@@ -156,6 +156,26 @@ public class OrderHandlerTest {
     }
 
     @Test
+    void invalid_new_order_with_negative_minimum_execution_quantity() {
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 100, LocalDateTime.now(), Side.SELL, 300, 15450, broker1.getBrokerId(), shareholder.getShareholderId(), 0, -1));
+        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(orderRejectedCaptor.capture());
+        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
+        assertThat(outputEvent.getOrderId()).isEqualTo(100);
+        assertThat(outputEvent.getErrors()).containsOnly(Message.INVALID_ORDER_MINIMUM_EXECUTION_QUANTITY);
+    }
+
+    @Test
+    void invalid_new_order_with_minimum_execution_quantity_greater_than_quantity() {
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, security.getIsin(), 100, LocalDateTime.now(), Side.SELL, 300, 15450, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 301));
+        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(orderRejectedCaptor.capture());
+        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
+        assertThat(outputEvent.getOrderId()).isEqualTo(100);
+        assertThat(outputEvent.getErrors()).containsOnly(Message.INVALID_ORDER_MINIMUM_EXECUTION_QUANTITY);
+    }
+
+    @Test
     void invalid_new_order_with_tick_and_lot_size_errors() {
         Security aSecurity = Security.builder().isin("XXX").lotSize(10).tickSize(10).build();
         securityRepository.addSecurity(aSecurity);
