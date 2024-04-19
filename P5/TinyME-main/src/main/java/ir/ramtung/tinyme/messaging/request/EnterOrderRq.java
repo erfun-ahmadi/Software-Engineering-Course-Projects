@@ -27,6 +27,7 @@ public class EnterOrderRq {
     private long shareholderId;
     private int peakSize;
     private int minimumExecutionQuantity;
+    private int stopPrice;
 
     private EnterOrderRq(OrderEntryType orderEntryType, long requestId, String securityIsin, long orderId, LocalDateTime entryTime, Side side, int quantity, int price, long brokerId, long shareholderId, int peakSize, int minimumExecutionQuantity) {
         this.requestType = orderEntryType;
