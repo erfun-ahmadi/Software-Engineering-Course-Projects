@@ -28,12 +28,22 @@ public class Security {
             return MatchResult.notEnoughPositions();
         Order order;
         if (enterOrderRq.getPeakSize() == 0)
-            order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
-                    enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime());
+            if (enterOrderRq.getMinimumExecutionQuantity() != 0 && enterOrderRq.getStopPrice() != 0) {
+                return MatchResult.notAbleToCreateStopLimitOrder();
+            }
+            else {
+                order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
+                        enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime());
+            }
         else
-            order = new IcebergOrder(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
-                    enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder,
-                    enterOrderRq.getEntryTime(), enterOrderRq.getPeakSize());
+            if (enterOrderRq.getStopPrice() != 0) {
+                return MatchResult.notAbleToCreateStopLimitOrder();
+            }
+            else {
+                order = new IcebergOrder(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
+                        enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder,
+                        enterOrderRq.getEntryTime(), enterOrderRq.getPeakSize());
+            }
 
         return matcher.execute(order);
     }
