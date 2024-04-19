@@ -46,7 +46,8 @@ class SecurityTest {
                 new Order(7, security, Side.SELL, 285, 15810, 0, broker, shareholder),
                 new Order(8, security, Side.SELL, 800, 15810, 0, broker, shareholder),
                 new Order(9, security, Side.SELL, 340, 15820, 0, broker, shareholder),
-                new Order(10, security, Side.SELL, 65, 15820, 0, broker, shareholder)
+                new Order(10, security, Side.SELL, 65, 15820, 0, broker, shareholder),
+                new Order(11, security, Side.SELL, 400, 15600, 100, broker, shareholder)
         );
         orders.forEach(order -> security.getOrderBook().enqueue(order));
     }
@@ -88,6 +89,12 @@ class SecurityTest {
     @Test
     void updating_non_existing_order_fails() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 6, LocalDateTime.now(), BUY, 350, 15700, 0, 0, 0, 0);
+        assertThatExceptionOfType(InvalidRequestException.class).isThrownBy(() -> security.updateOrder(updateOrderRq, matcher));
+    }
+
+    @Test
+    void trying_to_change_minimum_execution_quantity_fails(){
+        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 11, LocalDateTime.now(), Side.SELL, 400, 15600, 0, 0, 0, 0);
         assertThatExceptionOfType(InvalidRequestException.class).isThrownBy(() -> security.updateOrder(updateOrderRq, matcher));
     }
 
