@@ -8,7 +8,7 @@ import java.util.ListIterator;
 
 @Service
 public class Matcher {
-    private LinkedList <MatchResult> matchResults;
+    private LinkedList <MatchResult> matchResults=new LinkedList<>();
 
     public MatchResult match(Order newOrder) {
         OrderBook orderBook = newOrder.getSecurity().getOrderBook();
@@ -84,6 +84,7 @@ public class Matcher {
 
         if (result.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT) {
             matchResults.add(result);
+            return matchResults;
         }
 
         if (result.remainder().getQuantity() > 0) {
@@ -103,6 +104,7 @@ public class Matcher {
                 trade.getSell().getShareholder().decPosition(trade.getSecurity(), trade.getQuantity());
             }
         }
+        matchResults.add(result);
         activator(result);
         executeActivates(result);
         return matchResults;
