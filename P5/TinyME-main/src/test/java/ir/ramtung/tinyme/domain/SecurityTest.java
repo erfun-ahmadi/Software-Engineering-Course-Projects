@@ -48,7 +48,7 @@ class SecurityTest {
                 new Order(8, security, Side.SELL, 800, 15810, 0, broker, shareholder, 0),
                 new Order(9, security, Side.SELL, 340, 15820, 0, broker, shareholder, 0),
                 new Order(10, security, Side.SELL, 65, 15820, 0, broker, shareholder, 0),
-                new Order(11, security, Side.SELL, 400, 15600, 100, broker, shareholder, 0)
+                new Order(11, security, Side.SELL, 400, 15900, 100, broker, shareholder, 0)
         );
         orders.forEach(order -> security.getOrderBook().enqueue(order));
     }
@@ -104,7 +104,7 @@ class SecurityTest {
         DeleteOrderRq deleteOrderRq = new DeleteOrderRq(1, security.getIsin(), Side.SELL, 6, 0, true);
         assertThatNoException().isThrownBy(() -> security.deleteOrder(deleteOrderRq));
         assertThat(security.getOrderBook().getBuyQueue()).isEqualTo(orders.subList(0, 5));
-        assertThat(security.getOrderBook().getSellQueue()).isEqualTo(orders.subList(6, 10));
+        assertThat(security.getOrderBook().getSellQueue()).isEqualTo(orders.subList(6, 11));
     }
 
     @Test
