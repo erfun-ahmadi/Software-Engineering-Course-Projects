@@ -12,6 +12,7 @@ import org.springframework.test.annotation.DirtiesContext;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 
 import static ir.ramtung.tinyme.domain.entity.Side.BUY;
@@ -37,23 +38,23 @@ public class MatcherTest {
         shareholder.incPosition(security, 100_000);
         orderBook = security.getOrderBook();
         orders = Arrays.asList(
-                new Order(1, security, BUY, 304, 15700, 0, broker, shareholder),
-                new Order(2, security, BUY, 43, 15500, 0, broker, shareholder),
-                new Order(3, security, BUY, 445, 15450, 0, broker, shareholder),
-                new Order(4, security, BUY, 526, 15450, 0, broker, shareholder),
-                new Order(5, security, BUY, 1000, 15400, 0, broker, shareholder),
-                new Order(6, security, Side.SELL, 350, 15800, 0, broker, shareholder),
-                new Order(7, security, Side.SELL, 285, 15810, 0, broker, shareholder),
-                new Order(8, security, Side.SELL, 800, 15810, 0, broker, shareholder),
-                new Order(9, security, Side.SELL, 340, 15820, 0, broker, shareholder),
-                new Order(10, security, Side.SELL, 65, 15820, 0, broker, shareholder)
+                new Order(1, security, BUY, 304, 15700, 0, broker, shareholder, 0),
+                new Order(2, security, BUY, 43, 15500, 0, broker, shareholder, 0),
+                new Order(3, security, BUY, 445, 15450, 0, broker, shareholder, 0),
+                new Order(4, security, BUY, 526, 15450, 0, broker, shareholder, 0),
+                new Order(5, security, BUY, 1000, 15400, 0, broker, shareholder, 0),
+                new Order(6, security, Side.SELL, 350, 15800, 0, broker, shareholder, 0),
+                new Order(7, security, Side.SELL, 285, 15810, 0, broker, shareholder, 0),
+                new Order(8, security, Side.SELL, 800, 15810, 0, broker, shareholder, 0),
+                new Order(9, security, Side.SELL, 340, 15820, 0, broker, shareholder, 0),
+                new Order(10, security, Side.SELL, 65, 15820, 0, broker, shareholder, 0)
         );
         orders.forEach(order -> orderBook.enqueue(order));
     }
 
     @Test
     void new_sell_order_matches_completely_with_part_of_the_first_buy() {
-        Order order = new Order(11, security, Side.SELL, 100, 15600, 0, broker, shareholder);
+        Order order = new Order(11, security, Side.SELL, 100, 15600, 0, broker, shareholder, 0);
         Trade trade = new Trade(security, 15700, 100, orders.get(0), order);
         MatchResult result = matcher.match(order);
         assertThat(result.remainder().getQuantity()).isEqualTo(0);
@@ -63,7 +64,7 @@ public class MatcherTest {
 
     @Test
     void new_sell_order_matches_partially_with_the_first_buy() {
-        Order order = new Order(11, security, Side.SELL, 500, 15600, 0, broker, shareholder);
+        Order order = new Order(11, security, Side.SELL, 500, 15600, 0, broker, shareholder, 0);
         Trade trade = new Trade(security, 15700, 304, orders.get(0), order);
         MatchResult result = matcher.match(order);
         assertThat(result.remainder().getQuantity()).isEqualTo(196);
@@ -73,7 +74,7 @@ public class MatcherTest {
 
     @Test
     void new_sell_order_matches_partially_with_two_buys() {
-        Order order = new Order(11, security, Side.SELL, 500, 15500, 0, broker, shareholder);
+        Order order = new Order(11, security, Side.SELL, 500, 15500, 0, broker, shareholder, 0);
         Trade trade1 = new Trade(security, 15700, 304, orders.get(0), order);
         Trade trade2 = new Trade(security, 15500, 43, orders.get(1), order.snapshotWithQuantity(196));
         MatchResult result = matcher.match(order);
@@ -84,7 +85,7 @@ public class MatcherTest {
 
     @Test
     void new_buy_order_matches_partially_with_the_entire_sell_queue() {
-        Order order = new Order(11, security, BUY, 2000, 15820, 0, broker, shareholder);
+        Order order = new Order(11, security, BUY, 2000, 15820, 0, broker, shareholder, 0);
         List<Trade> trades = new ArrayList<>();
         int totalTraded = 0;
         for (Order o : orders.subList(5, 10)) {
@@ -101,7 +102,7 @@ public class MatcherTest {
 
     @Test
     void new_buy_order_does_not_match() {
-        Order order = new Order(11, security, BUY, 2000, 15500, 0, broker, shareholder);
+        Order order = new Order(11, security, BUY, 2000, 15500, 0, broker, shareholder, 0);
         MatchResult result = matcher.match(order);
         assertThat(result.remainder()).isEqualTo(order);
         assertThat(result.trades()).isEmpty();
@@ -113,12 +114,12 @@ public class MatcherTest {
         broker = Broker.builder().build();
         orderBook = security.getOrderBook();
         orders = Arrays.asList(
-                new IcebergOrder(1, security, BUY, 450, 15450, 0, broker, shareholder, 200),
-                new Order(2, security, BUY, 70, 15450, 0, broker, shareholder),
-                new Order(3, security, BUY, 1000, 15400, 0, broker, shareholder)
+                new IcebergOrder(1, security, BUY, 450, 15450, 0, broker, shareholder, 200, 0),
+                new Order(2, security, BUY, 70, 15450, 0, broker, shareholder, 0),
+                new Order(3, security, BUY, 1000, 15400, 0, broker, shareholder, 0)
         );
         orders.forEach(order -> orderBook.enqueue(order));
-        Order order = new Order(4, security, Side.SELL, 600, 15450, 0, broker, shareholder);
+        Order order = new Order(4, security, Side.SELL, 600, 15450, 0, broker, shareholder, 0);
         List<Trade> trades = List.of(
                 new Trade(security, 15450, 200, orders.get(0).snapshotWithQuantity(200), order.snapshotWithQuantity(600)),
                 new Trade(security, 15450, 70, orders.get(1).snapshotWithQuantity(70), order.snapshotWithQuantity(400)),
@@ -137,11 +138,11 @@ public class MatcherTest {
         security = Security.builder().isin("TEST").build();
         shareholder.incPosition(security, 1_000);
         security.getOrderBook().enqueue(
-                new Order(1, security, Side.SELL, 100, 10, 0, broker, shareholder)
+                new Order(1, security, Side.SELL, 100, 10, 0, broker, shareholder, 0)
         );
 
-        Order order = new IcebergOrder(1, security, BUY, 120, 10, 0, broker, shareholder, 40);
-        MatchResult result = matcher.execute(order);
+        Order order = new IcebergOrder(1, security, BUY, 120, 10, 0, broker, shareholder, 40, 0);
+        LinkedList <MatchResult> result = matcher.execute(order);
 
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades()).hasSize(1);
@@ -153,7 +154,7 @@ public class MatcherTest {
 
     @Test
     void minimum_execution_quantity_not_met_for_sell_order_rolls_back() {
-        Order order = new Order(11, security, Side.SELL, 500, 15500, 400, broker, shareholder);
+        Order order = new Order(11, security, Side.SELL, 500, 15500, 400, broker, shareholder, 0);
         MatchResult result = matcher.match(order);
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.NOT_ENOUGH_QUANTITIES_TRADED);
         assertThat(result.trades()).isEmpty();
@@ -163,7 +164,7 @@ public class MatcherTest {
 
     @Test
     void minimum_execution_quantity_not_met_for_buy_order_rolls_back() {
-        Order order = new Order(11, security, BUY, 2000, 15810, 1500, broker, shareholder);
+        Order order = new Order(11, security, BUY, 2000, 15810, 1500, broker, shareholder, 0);
         MatchResult result = matcher.match(order);
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.NOT_ENOUGH_QUANTITIES_TRADED);
         assertThat(result.trades()).isEmpty();
@@ -174,7 +175,7 @@ public class MatcherTest {
 
     @Test
     void new_sell_order_with_minimum_execution_quantity_executes() {
-        Order order = new Order(11, security, Side.SELL, 500, 15500, 300, broker, shareholder);
+        Order order = new Order(11, security, Side.SELL, 500, 15500, 300, broker, shareholder, 0);
         MatchResult result = matcher.match(order);
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades().size()).isEqualTo(2);
@@ -182,7 +183,7 @@ public class MatcherTest {
 
     @Test
     void new_buy_order_with_minimum_execution_quantity_executes() {
-        Order order = new Order(11, security, BUY, 700, 15810, 500, broker, shareholder);
+        Order order = new Order(11, security, BUY, 700, 15810, 500, broker, shareholder, 0);
         MatchResult result = matcher.match(order);
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades().size()).isEqualTo(3);
