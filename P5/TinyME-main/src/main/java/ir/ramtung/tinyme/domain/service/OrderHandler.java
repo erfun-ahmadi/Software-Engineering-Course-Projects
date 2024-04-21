@@ -63,6 +63,10 @@ public class OrderHandler {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.SELLER_HAS_NOT_ENOUGH_POSITIONS)));
                 return;
             }
+            if (matchResult.outcome() == MatchingOutcome.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER) {
+                eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER)));
+                return;
+            }
             if (matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACCEPTED) {
                 eventPublisher.publish(new OrderAcceptedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
                 return;

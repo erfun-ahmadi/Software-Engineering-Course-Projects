@@ -17,4 +17,5 @@ public class Message {
     public static final String INVALID_ORDER_MINIMUM_EXECUTION_QUANTITY = "Order minimum execution quantity is not-positive";
     public static final String CANNOT_UPDATE_MINIMUM_EXECUTION_QUANTITY = "Can't update minimum execution quantity";
     public static final String INVALID_UPDATE_STOP_PRICE = "invalid update stop price";
+    public static final String NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER = "invalid stop limit order";
 }

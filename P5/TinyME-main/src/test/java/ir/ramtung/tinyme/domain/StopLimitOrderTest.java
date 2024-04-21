@@ -5,14 +5,17 @@ import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.service.Matcher;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.messaging.EventPublisher;
+import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.event.OrderAcceptedEvent;
 import ir.ramtung.tinyme.messaging.event.OrderActivatedEvent;
+import ir.ramtung.tinyme.messaging.event.OrderRejectedEvent;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
 import ir.ramtung.tinyme.repository.ShareholderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -20,7 +23,6 @@ import org.springframework.test.annotation.DirtiesContext;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 
 import static ir.ramtung.tinyme.domain.entity.Side.BUY;
@@ -55,7 +57,7 @@ class StopLimitOrderTest {
         brokerRepository.clear();
         shareholderRepository.clear();
 
-        security = Security.builder().isin("ABC").build();
+        security = Security.builder().lastTradePrice(15500).build();
         broker = Broker.builder().brokerId(0).credit(10_000_000L).build();
         shareholder = Shareholder.builder().shareholderId(0).build();
         shareholder.incPosition(security, 100_000);
@@ -80,11 +82,78 @@ class StopLimitOrderTest {
 
     @Test
     void stop_limit_buy_order_inactive_enter() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15450, 0, 0, 0, 0, 15400);
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
         orderHandler.handleEnterOrder(enterOrderRq);
-        verify(eventPublisher).publish((new OrderActivatedEvent(1)));
-//        assertThatNoException().isThrownBy(() -> security.newOrder(enterOrderRq, matcher));
-//        assertThat(security.getOrderBook().getBuyQueue().get(2).getQuantity()).isEqualTo(440);
-//        assertThat(security.getOrderBook().getBuyQueue().get(2).getOrderId()).isEqualTo(3);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
     }
+
+    @Test
+    void stop_limit_sell_order_inactive_enter(){
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 440, 15450, 0, 0, 0, 0, 15450, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
+    }
+
+    @Test
+    void stop_limit_buy_order_active_enter(){
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15450, 0, 0, 0, 0, 15550, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
+        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+    }
+
+    @Test
+    void stop_limit_sell_order_active_enter(){
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 440, 15550, 0, 0, 0, 0, 15550, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
+        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+    }
+
+    @Test
+    void stop_limit_order_activates_later(){
+
+    }
+
+    @Test
+    void last_trade_price_updates(){
+
+    }
+
+    @Test
+    void stop_limit_order_activates_in_stop_price_order(){
+
+    }
+
+    @Test
+    void stop_limit_order_with_equal_stop_price_activates_in_entry_time_order(){
+
+    }
+
+    @Test
+    void create_order_with_stop_limit_and_minimum_execution_quantity_fails(){
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 100, 15550, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(orderRejectedCaptor.capture());
+        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
+        assertThat(outputEvent.getOrderId()).isEqualTo(12);
+        assertThat(outputEvent.getErrors()).containsOnly(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER);
+    }
+
+    @Test
+    void create_iceberg_order_with_stop_limit_fails(){
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 100, 0, 15550, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(orderRejectedCaptor.capture());
+        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
+        assertThat(outputEvent.getOrderId()).isEqualTo(12);
+        assertThat(outputEvent.getErrors()).containsOnly(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER);
+    }
+
 }
