@@ -35,24 +35,24 @@ class OrderBookTest {
 
     @Test
     void finds_the_first_order_by_id() {
-        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 1))
+        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 1, 15700, false))
                 .isEqualTo(orders.get(0));
     }
 
     @Test
     void fails_to_find_the_first_order_by_id_in_the_wrong_queue() {
-        assertThat(security.getOrderBook().findByOrderId(Side.SELL, 1)).isNull();
+        assertThat(security.getOrderBook().findByOrderId(Side.SELL, 1, 15700, false)).isNull();
     }
 
     @Test
     void finds_some_order_in_the_middle_by_id() {
-        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 3))
+        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 3, 15450, false))
                 .isEqualTo(orders.get(2));
     }
 
     @Test
     void finds_the_last_order_by_id() {
-        assertThat(security.getOrderBook().findByOrderId(Side.SELL, 10))
+        assertThat(security.getOrderBook().findByOrderId(Side.SELL, 10, 15820, false))
                 .isEqualTo(orders.get(9));
     }
 

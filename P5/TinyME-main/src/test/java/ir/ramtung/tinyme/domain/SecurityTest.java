@@ -83,7 +83,7 @@ class SecurityTest {
     void changing_price_causes_trades_to_happen() {
         EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 6, LocalDateTime.now(), Side.SELL, 350, 15700, 0, 0, 0, 0, 0, true);
         assertThatNoException().isThrownBy(() ->
-                assertThat(security.updateOrder(updateOrderRq, matcher).trades()).isNotEmpty()
+                assertThat(security.updateOrder(updateOrderRq, matcher).getFirst().trades()).isNotEmpty()
         );
     }
 
@@ -191,7 +191,7 @@ class SecurityTest {
 
         EnterOrderRq updateReq = EnterOrderRq.createUpdateOrderRq(5, security.getIsin(), 4, LocalDateTime.now(), SELL, 30, 10, 0, 0, 10, 0, 0, true);
 
-        LinkedList <MatchResult> result = security.updateOrder(updateReq, matcher);
+        MatchResult result = security.updateOrder(updateReq, matcher).getFirst();
 
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades()).hasSize(2);

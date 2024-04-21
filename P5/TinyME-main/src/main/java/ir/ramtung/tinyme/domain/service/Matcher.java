@@ -130,15 +130,15 @@ public class Matcher {
     private void activator(MatchResult lastResult){
         int lastPrice = lastResult.trades().getLast().getPrice();
         lastResult.remainder().getSecurity().setLastTradePrice(lastPrice);
-        lastResult.remainder().getOrderBook().activateOrder();
+        lastResult.remainder().getSecurity().getOrderBook().activateOrder();
     }
 
     private void executeActivates(MatchResult result){
-        var it = result.remainder().getOrderBook().getActiveQueue().listIterator();
+        var it = result.remainder().getSecurity().getOrderBook().getActiveQueue().listIterator();
         if (it.hasNext()) {
-            it.next();
-            result.remainder().getOrderBook().removeByOrderId(it.getOrderId());
-            execute(it);
+            Order order = it.next();
+            result.remainder().getSecurity().getOrderBook().removeByOrderId(order.getSide(), order.getOrderId(), order.getStopPrice(), order.isInactive());
+            execute(order);
         }
     }
 }

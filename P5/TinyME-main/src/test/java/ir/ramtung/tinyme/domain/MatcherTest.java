@@ -142,7 +142,7 @@ public class MatcherTest {
         );
 
         Order order = new IcebergOrder(1, security, BUY, 120, 10, 0, broker, shareholder, 40, 0);
-        LinkedList <MatchResult> result = matcher.execute(order);
+        MatchResult result = matcher.execute(order).getFirst();
 
         assertThat(result.outcome()).isEqualTo(MatchingOutcome.EXECUTED);
         assertThat(result.trades()).hasSize(1);

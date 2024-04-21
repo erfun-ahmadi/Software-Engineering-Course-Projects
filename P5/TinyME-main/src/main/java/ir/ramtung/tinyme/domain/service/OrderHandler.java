@@ -75,10 +75,14 @@ public class OrderHandler {
                 eventPublisher.publish(new OrderExecutedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
             }
 
-            var it = matchResults.listIterator().next();
-            while (it.hasNext()) {
-                if (!it.next().trades().isEmpty()) {
-                    eventPublisher.publish(new OrderExecutedEvent(it.remainder.getRequestId(), it.remainder.getOrderId(), it.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
+            var it = matchResults.listIterator();
+            if (it.hasNext()) {
+                it.next();
+                while (it.hasNext()) {
+                    matchResult = it.next();
+                    if (!matchResult.trades().isEmpty()) {
+                        eventPublisher.publish(new OrderExecutedEvent(1, matchResult.remainder().getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
+                    }
                 }
             }
 

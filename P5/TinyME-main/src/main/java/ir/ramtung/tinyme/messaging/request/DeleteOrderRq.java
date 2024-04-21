@@ -34,4 +34,13 @@ public class DeleteOrderRq {
         this.stopPrice = stopPrice;
         this.inactive = inactive;
     }
+    public DeleteOrderRq(long requestId, String securityIsin, Side side, long orderId) {
+        this.requestId = requestId;
+        this.securityIsin = securityIsin;
+        this.side = side;
+        this.orderId = orderId;
+        this.entryTime = LocalDateTime.now();
+        this.stopPrice = 0;
+        this.inactive = false;
+    }
 }
