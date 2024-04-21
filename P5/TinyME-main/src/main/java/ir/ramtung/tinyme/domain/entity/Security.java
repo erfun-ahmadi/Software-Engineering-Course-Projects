@@ -5,7 +5,6 @@ import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.domain.service.Matcher;
 import ir.ramtung.tinyme.messaging.Message;
-import ir.ramtung.tinyme.repository.BrokerRepository;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -23,8 +22,8 @@ public class Security {
     @Builder.Default
     private OrderBook orderBook = new OrderBook();
     private int lastTradePrice;
-    private LinkedList<MatchResult> matchResults;
-    BrokerRepository brokerRepository;
+    @Builder.Default
+    private LinkedList<MatchResult> matchResults=new LinkedList<>();
 
     public LinkedList<MatchResult> newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, Matcher matcher) {
         if (enterOrderRq.getSide() == Side.SELL &&
@@ -43,11 +42,11 @@ public class Security {
                         enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime(), enterOrderRq.getStopPrice());
             }
             else if(enterOrderRq.getMinimumExecutionQuantity() == 0 && enterOrderRq.getStopPrice() != 0) {
-                if ((enterOrderRq.getSide() == Side.BUY) && (brokerRepository.findBrokerById(enterOrderRq.getBrokerId()).hasEnoughCredit(enterOrderRq.getQuantity()*enterOrderRq.getPrice()))) {
+                if ((enterOrderRq.getSide() == Side.BUY) && broker.hasEnoughCredit(enterOrderRq.getQuantity()*enterOrderRq.getPrice())) {
                     order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
                             enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime(), enterOrderRq.getStopPrice());
                     order.getBroker().decreaseCreditBy(order.getValue());
-                } else if ((enterOrderRq.getSide() == Side.BUY) && (!brokerRepository.findBrokerById(enterOrderRq.getBrokerId()).hasEnoughCredit(enterOrderRq.getQuantity()*enterOrderRq.getPrice()))) {
+                } else if ((enterOrderRq.getSide() == Side.BUY) && (!broker.hasEnoughCredit(enterOrderRq.getQuantity()*enterOrderRq.getPrice()))) {
                     matchResults.add(MatchResult.notEnoughCredit());
                     return matchResults;
                 }
