@@ -77,10 +77,45 @@ public class Matcher {
         }
     }
 
-    public MatchResult execute(Order order) {
-        MatchResult result = match(order);
-        if (result.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT)
-            return result;
+    public LinkedList<MatchResult> matchActivatedStopLimitOrder(Order order) {
+        for (Order activatedOrder : Order.getSecurity().getOrderBook().getActiveQueue()) {
+//hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
+        }
+    }
+
+    public void activateStopLimitOrders(Order order) {
+        for (Order inactiveOrder : Order.getSecurity().getOrderBook().getInactiveBuyQueue()) {
+            if (inactiveOrder.getStopPrice() <= order.getSecurity().getLastTradePrice()) {
+                inactiveOrder.activate();
+                order.getSecurity().getOrderBook().enqueue(inactiveOrder);
+            }
+        }
+        for (Order inactiveOrder : Order.getSecurity().getOrderBook().getInactiveSellQueue()) {
+            if (inactiveOrder.getStopPrice() >= order.getSecurity().getLastTradePrice()) {
+                inactiveOrder.activate();
+                order.getSecurity().getOrderBook().enqueue(inactiveOrder);
+            }
+        }
+    }
+
+    public LinkedList<MatchResult> execute(Order order) {
+        MatchResult result;
+        LinkedList <MatchResult> matchResults;
+        if (order.getStopPrice != 0 && order.getSide == Side.BUY && order.getStopPrice() >= order.getSecurity().getLastTradePrice()) {
+            order.activate();
+            result = match(order);
+            matchResults.add(result);
+        }
+        else if (order.getStopPrice != 0 && order.getSide == Side.SELL && order.getStopPrice() <= order.getSecurity().getLastTradePrice()) {
+            order.activate();
+            result = match(order);
+            matchResults.add(result);
+        }
+//        result = match(order);
+        if (result.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT) {
+            result = match(order);
+            matchResults.add(result);
+        }
 
         if (result.remainder().getQuantity() > 0) {
             if (order.getSide() == Side.BUY) {
@@ -96,6 +131,7 @@ public class Matcher {
             for (Trade trade : result.trades()) {
                 trade.getBuy().getShareholder().incPosition(trade.getSecurity(), trade.getQuantity());
                 trade.getSell().getShareholder().decPosition(trade.getSecurity(), trade.getQuantity());
+                order.getSecurity().updateLastTradePrice(trade.getPrice());
             }
         }
         return result;

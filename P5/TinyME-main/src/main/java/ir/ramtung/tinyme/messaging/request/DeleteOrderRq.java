@@ -22,12 +22,16 @@ public class DeleteOrderRq {
     @JsonSerialize(using = LocalDateTimeSerializer.class)
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     private LocalDateTime entryTime;
+    private int stopPrice;
+    private boolean inactive;
 
-    public DeleteOrderRq(long requestId, String securityIsin, Side side, long orderId) {
+    public DeleteOrderRq(long requestId, String securityIsin, Side side, long orderId, int stopPrice, boolean inactive) {
         this.requestId = requestId;
         this.securityIsin = securityIsin;
         this.side = side;
         this.orderId = orderId;
         this.entryTime = LocalDateTime.now();
+        this.stopPrice = stopPrice;
+        this.inactive = inactive;
     }
 }
