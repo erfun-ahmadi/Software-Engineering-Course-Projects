@@ -98,7 +98,7 @@ class StopLimitOrderTest {
 
     @Test
     void stop_limit_buy_order_active_enter(){
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15450, 0, 0, 0, 0, 15550, true);
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15450, 0, 0, 0, 0, 15450, true);
         orderHandler.handleEnterOrder(enterOrderRq);
         verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
         verify(eventPublisher).publish((new OrderActivatedEvent(12)));

@@ -90,7 +90,7 @@ public class OrderBook {
     }
 
     public Order matchWithFirst(Order newOrder) {
-        var queue = getQueue(newOrder.getSide().opposite(), newOrder.getStopPrice(), newOrder.isInactive());
+        var queue = (newOrder.getSide() == Side.BUY ? sellQueue : buyQueue);
         if (newOrder.matches(queue.getFirst()))
             return queue.getFirst();
         else
