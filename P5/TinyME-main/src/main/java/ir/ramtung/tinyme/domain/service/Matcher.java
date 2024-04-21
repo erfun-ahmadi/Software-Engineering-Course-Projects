@@ -130,9 +130,11 @@ public class Matcher {
     }
 
     private void activator(MatchResult lastResult){
-        int lastPrice = lastResult.trades().getLast().getPrice();
-        lastResult.remainder().getSecurity().setLastTradePrice(lastPrice);
-        lastResult.remainder().getSecurity().getOrderBook().activateOrder();
+        if(!lastResult.trades().isEmpty()) {
+            int lastPrice = lastResult.trades().getLast().getPrice();
+            lastResult.remainder().getSecurity().setLastTradePrice(lastPrice);
+            lastResult.remainder().getSecurity().getOrderBook().activateOrder();
+        }
     }
 
     private void executeActivates(MatchResult result){

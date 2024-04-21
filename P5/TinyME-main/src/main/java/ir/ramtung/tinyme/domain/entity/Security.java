@@ -33,38 +33,41 @@ public class Security {
             return matchResults;
         }
         Order order=null;
-        if (enterOrderRq.getPeakSize() == 0)
+        if (enterOrderRq.getPeakSize() == 0) {
             if (enterOrderRq.getMinimumExecutionQuantity() != 0 && enterOrderRq.getStopPrice() != 0) {
                 matchResults.add(MatchResult.notAbleToCreateStopLimitOrder());
                 return matchResults;
-            } else if(enterOrderRq.getMinimumExecutionQuantity() != 0 && enterOrderRq.getStopPrice() == 0){
+            } else if (enterOrderRq.getMinimumExecutionQuantity() != 0 && enterOrderRq.getStopPrice() == 0) {
                 order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
                         enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime(), enterOrderRq.getStopPrice());
-            }
-            else if(enterOrderRq.getMinimumExecutionQuantity() == 0 && enterOrderRq.getStopPrice() != 0) {
-                if ((enterOrderRq.getSide() == Side.BUY) && broker.hasEnoughCredit(enterOrderRq.getQuantity()*enterOrderRq.getPrice())) {
+            } else if (enterOrderRq.getMinimumExecutionQuantity() == 0 && enterOrderRq.getStopPrice() != 0) {
+                if ((enterOrderRq.getSide() == Side.BUY) && broker.hasEnoughCredit(enterOrderRq.getQuantity() * enterOrderRq.getPrice())) {
                     order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
                             enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime(), enterOrderRq.getStopPrice());
                     order.getBroker().decreaseCreditBy(order.getValue());
-                } else if ((enterOrderRq.getSide() == Side.BUY) && (!broker.hasEnoughCredit(enterOrderRq.getQuantity()*enterOrderRq.getPrice()))) {
+                } else if ((enterOrderRq.getSide() == Side.BUY) && (!broker.hasEnoughCredit(enterOrderRq.getQuantity() * enterOrderRq.getPrice()))) {
                     matchResults.add(MatchResult.notEnoughCredit());
                     return matchResults;
-                }
-                else {
+                } else {
                     order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
                             enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime(), enterOrderRq.getStopPrice());
                 }
+            }else {
+                order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
+                        enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime(), enterOrderRq.getStopPrice());
             }
+        }
         else if (enterOrderRq.getStopPrice() != 0) {
             matchResults.add(MatchResult.notAbleToCreateStopLimitOrder());
             return matchResults;
-        } else {
+        }
+        else {
             order = new IcebergOrder(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
                     enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder,
                     enterOrderRq.getEntryTime(), enterOrderRq.getPeakSize(), enterOrderRq.getStopPrice());
         }
-        if ((order.getStopPrice() != 0 && order.getSide() == Side.BUY && order.getStopPrice() >= order.getSecurity().getLastTradePrice()) ||
-                (order.getStopPrice() != 0 && order.getSide() == Side.SELL && order.getStopPrice() <= order.getSecurity().getLastTradePrice())) {
+        if ((order.getStopPrice() != 0 && order.getSide() == Side.BUY && order.getStopPrice() <= order.getSecurity().getLastTradePrice()) ||
+                (order.getStopPrice() != 0 && order.getSide() == Side.SELL && order.getStopPrice() >= order.getSecurity().getLastTradePrice())) {
             order.activate();
         } else if (order.getStopPrice() != 0) {
             matchResults.add(MatchResult.stopLimitOrderAccepted());
