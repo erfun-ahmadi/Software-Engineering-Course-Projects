@@ -71,8 +71,8 @@ public class Security {
             matchResults.add(MatchResult.stopLimitOrderAccepted());
             return matchResults;
         }
-        LinkedList<MatchResult> results = matcher.execute(order);
         matcher.clearMatchResults();
+        LinkedList<MatchResult> results = matcher.execute(order);
         return results;
     }
 
@@ -143,8 +143,8 @@ public class Security {
             order.markAsNew();
 
         orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId(), updateOrderRq.getStopPrice(), updateOrderRq.isInactive());
-        LinkedList<MatchResult> matchResults = matcher.execute(order);
         matcher.clearMatchResults();
+        LinkedList<MatchResult> matchResults = matcher.execute(order);
         if (matchResults.getFirst().outcome() != MatchingOutcome.EXECUTED) {
             orderBook.enqueue(originalOrder);
             if (updateOrderRq.getSide() == Side.BUY) {
