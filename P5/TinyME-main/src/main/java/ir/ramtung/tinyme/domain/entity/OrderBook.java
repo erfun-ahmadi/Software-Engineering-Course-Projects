@@ -1,5 +1,7 @@
 package ir.ramtung.tinyme.domain.entity;
 
+import ir.ramtung.tinyme.messaging.EventPublisher;
+import ir.ramtung.tinyme.messaging.event.OrderActivatedEvent;
 import lombok.Getter;
 
 import java.util.LinkedList;
@@ -12,7 +14,9 @@ public class OrderBook {
     private final LinkedList<Order> sellQueue;
     private final LinkedList<Order> inactiveBuyQueue;
     private final LinkedList<Order> inactiveSellQueue;
-    private final LinkedList<Order> activeQueue;
+    public final LinkedList<Order> activeQueue;
+
+    EventPublisher eventPublisher;
 
     public OrderBook() {
         buyQueue = new LinkedList<>();
@@ -121,5 +125,29 @@ public class OrderBook {
                 .filter(order -> order.getShareholder().equals(shareholder))
                 .mapToInt(Order::getTotalQuantity)
                 .sum();
+    }
+
+    public void activateOrder(){
+        var it = inactiveBuyQueue.listIterator();
+        while (it.hasNext()) {
+            it.next();
+            if ((it.getStopPrice != 0 && it.getSide == Side.BUY && it.getStopPrice() >= it.getSecurity().getLastTradePrice())){
+                it.inactive = false;
+                removeByOrderId(it.getSide() , it.getOrderId(), it.getStopPrice(), it.getInactive());
+                it.getBroker().increaseCreditBy(it.getValue());
+                enqueue(it);
+                eventPublisher.publish(new OrderActivatedEvent(it.getRequestId(), it.getOrderId()));
+            }
+        }
+        it = inactiveSellQueue.listIterator();
+        while (it.hasNext()) {
+            it.next();
+            if ((it.getStopPrice != 0 && it.getSide == Side.SELL && it.getStopPrice() <= it.getSecurity().getLastTradePrice())){
+                it.inactive = false;
+                removeByOrderId(it.getSide() , it.getOrderId(), it.getStopPrice(), it.getInactive());
+                enqueue(it);
+                eventPublisher.publish(new OrderActivatedEvent(it.getRequestId(), it.getOrderId()));
+            }
+        }
     }
 }

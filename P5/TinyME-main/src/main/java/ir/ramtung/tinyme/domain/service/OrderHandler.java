@@ -48,14 +48,23 @@ public class OrderHandler {
             else
                 matchResults = security.updateOrder(enterOrderRq, matcher);
 
-            assert matchResults != null;
+            if(matchResults.isEmpty()) {
+                eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
+                return;
+            }
+
             MatchResult matchResult = matchResults.getFirst();
+
             if (matchResult.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT) {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.BUYER_HAS_NOT_ENOUGH_CREDIT)));
                 return;
             }
             if (matchResult.outcome() == MatchingOutcome.NOT_ENOUGH_POSITIONS) {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.SELLER_HAS_NOT_ENOUGH_POSITIONS)));
+                return;
+            }
+            if (matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACCEPTED) {
+                eventPublisher.publish(new OrderAcceptedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
                 return;
             }
             if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER)
@@ -65,6 +74,14 @@ public class OrderHandler {
             if (!matchResult.trades().isEmpty()) {
                 eventPublisher.publish(new OrderExecutedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
             }
+
+            var it = matchResults.listIterator().next();
+            while (it.hasNext()) {
+                if (!it.next().trades().isEmpty()) {
+                    eventPublisher.publish(new OrderExecutedEvent(it.remainder.getRequestId(), it.remainder.getOrderId(), it.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
+                }
+            }
+
         } catch (InvalidRequestException ex) {
             eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), ex.getReasons()));
         }
@@ -119,4 +136,5 @@ public class OrderHandler {
         if (!errors.isEmpty())
             throw new InvalidRequestException(errors);
     }
+
 }

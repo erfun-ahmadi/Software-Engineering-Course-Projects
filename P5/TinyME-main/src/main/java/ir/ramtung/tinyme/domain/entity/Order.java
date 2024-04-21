@@ -126,4 +126,10 @@ public class Order {
     }
 
     public int getTotalQuantity() { return quantity; }
+
+    public void updateInactiveOrder(EnterOrderRq enterOrderRq){
+        this.price = enterOrderRq.getPrice();
+        this.quantity = enterOrderRq.getQuantity();
+        this.stopPrice = enterOrderRq.getStopPrice();
+    }
 }

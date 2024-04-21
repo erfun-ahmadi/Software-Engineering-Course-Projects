@@ -28,6 +28,10 @@ public final class MatchResult {
         return new MatchResult(MatchingOutcome.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER, null, new LinkedList<>());
     }
 
+    public static MatchResult stopLimitOrderAccepted() {
+        return new MatchResult(MatchingOutcome.STOP_LIMIT_ORDER_ACCEPTED, null, new LinkedList<>());
+    }
+
     private MatchResult(MatchingOutcome outcome, Order remainder, LinkedList<Trade> trades) {
         this.outcome = outcome;
         this.remainder = remainder;

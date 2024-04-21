@@ -16,4 +16,5 @@ public class Message {
     public static final String SELLER_HAS_NOT_ENOUGH_POSITIONS = "Seller has not enough positions";
     public static final String INVALID_ORDER_MINIMUM_EXECUTION_QUANTITY = "Order minimum execution quantity is not-positive";
     public static final String CANNOT_UPDATE_MINIMUM_EXECUTION_QUANTITY = "Can't update minimum execution quantity";
+    public static final String INVALID_UPDATE_STOP_PRICE = "invalid update stop price";
 }

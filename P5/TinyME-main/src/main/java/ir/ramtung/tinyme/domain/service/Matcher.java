@@ -8,6 +8,8 @@ import java.util.ListIterator;
 
 @Service
 public class Matcher {
+    private LinkedList <MatchResult> matchResults;
+
     public MatchResult match(Order newOrder) {
         OrderBook orderBook = newOrder.getSecurity().getOrderBook();
         LinkedList<Trade> trades = new LinkedList<>();
@@ -77,43 +79,10 @@ public class Matcher {
         }
     }
 
-    public LinkedList<MatchResult> matchActivatedStopLimitOrder(Order order) {
-        for (Order activatedOrder : Order.getSecurity().getOrderBook().getActiveQueue()) {
-//hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
-        }
-    }
-
-    public void activateStopLimitOrders(Order order) {
-        for (Order inactiveOrder : Order.getSecurity().getOrderBook().getInactiveBuyQueue()) {
-            if (inactiveOrder.getStopPrice() <= order.getSecurity().getLastTradePrice()) {
-                inactiveOrder.activate();
-                order.getSecurity().getOrderBook().enqueue(inactiveOrder);
-            }
-        }
-        for (Order inactiveOrder : Order.getSecurity().getOrderBook().getInactiveSellQueue()) {
-            if (inactiveOrder.getStopPrice() >= order.getSecurity().getLastTradePrice()) {
-                inactiveOrder.activate();
-                order.getSecurity().getOrderBook().enqueue(inactiveOrder);
-            }
-        }
-    }
-
     public LinkedList<MatchResult> execute(Order order) {
-        MatchResult result;
-        LinkedList <MatchResult> matchResults;
-        if (order.getStopPrice != 0 && order.getSide == Side.BUY && order.getStopPrice() >= order.getSecurity().getLastTradePrice()) {
-            order.activate();
-            result = match(order);
-            matchResults.add(result);
-        }
-        else if (order.getStopPrice != 0 && order.getSide == Side.SELL && order.getStopPrice() <= order.getSecurity().getLastTradePrice()) {
-            order.activate();
-            result = match(order);
-            matchResults.add(result);
-        }
-//        result = match(order);
+        MatchResult result = match(order);
+
         if (result.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT) {
-            result = match(order);
             matchResults.add(result);
         }
 
@@ -121,7 +90,8 @@ public class Matcher {
             if (order.getSide() == Side.BUY) {
                 if (!order.getBroker().hasEnoughCredit(order.getValue())) {
                     buyerRollbackTrades(order, result.trades());
-                    return MatchResult.notEnoughCredit();
+                    matchResults.add(MatchResult.notEnoughCredit());
+                    return matchResults;
                 }
                 order.getBroker().decreaseCreditBy(order.getValue());
             }
@@ -131,10 +101,11 @@ public class Matcher {
             for (Trade trade : result.trades()) {
                 trade.getBuy().getShareholder().incPosition(trade.getSecurity(), trade.getQuantity());
                 trade.getSell().getShareholder().decPosition(trade.getSecurity(), trade.getQuantity());
-                order.getSecurity().updateLastTradePrice(trade.getPrice());
             }
         }
-        return result;
+        activator(result);
+        executeActivates(result);
+        return matchResults;
     }
 
     private int getSumOfTradesQuantities(LinkedList<Trade> trades) {
@@ -149,6 +120,25 @@ public class Matcher {
             return MatchResult.notEnoughQuantitiesTraded();
         } else {
             return MatchResult.executed(newOrder, trades);
+        }
+    }
+
+    public void clearMatchResults(){
+        matchResults.clear();
+    }
+
+    private void activator(MatchResult lastResult){
+        int lastPrice = lastResult.trades().getLast().getPrice();
+        lastResult.remainder().getSecurity().setLastTradePrice(lastPrice);
+        lastResult.remainder().getOrderBook().activateOrder();
+    }
+
+    private void executeActivates(MatchResult result){
+        var it = result.remainder().getOrderBook().getActiveQueue().listIterator();
+        if (it.hasNext()) {
+            it.next();
+            result.remainder().getOrderBook().removeByOrderId(it.getOrderId());
+            execute(it);
         }
     }
 }
