@@ -42,12 +42,14 @@ public class OrderHandler {
             Broker broker = brokerRepository.findBrokerById(enterOrderRq.getBrokerId());
             Shareholder shareholder = shareholderRepository.findShareholderById(enterOrderRq.getShareholderId());
 
-            MatchResult matchResult;
+            LinkedList<MatchResult> matchResults;
             if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER)
-                matchResult = security.newOrder(enterOrderRq, broker, shareholder, matcher);
+                matchResults = security.newOrder(enterOrderRq, broker, shareholder, matcher);
             else
-                matchResult = security.updateOrder(enterOrderRq, matcher);
+                matchResults = security.updateOrder(enterOrderRq, matcher);
 
+            assert matchResults != null;
+            MatchResult matchResult = matchResults.getFirst();
             if (matchResult.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT) {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.BUYER_HAS_NOT_ENOUGH_CREDIT)));
                 return;
