@@ -114,7 +114,7 @@ public class OrderBook {
     }
 
     public boolean hasOrderOfType(Side side) {
-        return (side == Side.BUY ? buyQueue : sellQueue).isEmpty();
+        return !(side == Side.BUY ? buyQueue : sellQueue).isEmpty();
     }
 
     public void removeFirst(Side side) {
