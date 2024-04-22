@@ -26,6 +26,29 @@ public class OrderBook {
         activeQueue = new LinkedList<>();
     }
 
+    public void matcherEnqueue(Order order) {
+        List<Order> queue = (order.getSide() == Side.BUY ? buyQueue : sellQueue);
+        ListIterator<Order> it = queue.listIterator();
+        if (order.getStopPrice() == 0) {
+            while (it.hasNext()) {
+                if (order.queuesBefore(it.next())) {
+                    it.previous();
+                    break;
+                }
+            }
+        }
+        else if (order.getStopPrice() != 0) {
+            while (it.hasNext()) {
+                if (order.queuesBeforeStopLimit(it.next())) {
+                    it.previous();
+                    break;
+                }
+            }
+        }
+        order.queue();
+        it.add(order);
+    }
+
     public void enqueue(Order order) {
         List<Order> queue = getQueue(order.getSide(), order.getStopPrice(), order.isInactive());
         ListIterator<Order> it = queue.listIterator();

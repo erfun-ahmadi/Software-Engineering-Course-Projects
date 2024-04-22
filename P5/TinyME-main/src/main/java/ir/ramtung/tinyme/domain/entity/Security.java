@@ -69,6 +69,7 @@ public class Security {
         if ((order.getStopPrice() != 0 && order.getSide() == Side.BUY && order.getStopPrice() <= order.getSecurity().getLastTradePrice()) ||
                 (order.getStopPrice() != 0 && order.getSide() == Side.SELL && order.getStopPrice() >= order.getSecurity().getLastTradePrice())) {
             order.activate();
+            order.getBroker().increaseCreditBy(order.getValue());
         } else if (order.getStopPrice() != 0) {
             matchResults.add(MatchResult.stopLimitOrderAccepted());
             orderBook.enqueue(order);

@@ -96,7 +96,7 @@ public class Matcher {
                 }
                 order.getBroker().decreaseCreditBy(order.getValue());
             }
-            order.getSecurity().getOrderBook().enqueue(result.remainder());
+            order.getSecurity().getOrderBook().matcherEnqueue(result.remainder());
         }
         if (!result.trades().isEmpty()) {
             for (Trade trade : result.trades()) {
