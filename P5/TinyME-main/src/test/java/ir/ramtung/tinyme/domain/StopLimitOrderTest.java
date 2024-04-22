@@ -6,10 +6,7 @@ import ir.ramtung.tinyme.domain.service.Matcher;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
-import ir.ramtung.tinyme.messaging.event.OrderAcceptedEvent;
-import ir.ramtung.tinyme.messaging.event.OrderActivatedEvent;
-import ir.ramtung.tinyme.messaging.event.OrderExecutedEvent;
-import ir.ramtung.tinyme.messaging.event.OrderRejectedEvent;
+import ir.ramtung.tinyme.messaging.event.*;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
@@ -51,6 +48,7 @@ class StopLimitOrderTest {
     private List<Order> orders;
     @Autowired
     Matcher matcher;
+    long original_broker_credit;
 
     @BeforeEach
     void setupOrderBook() {
@@ -59,7 +57,8 @@ class StopLimitOrderTest {
         shareholderRepository.clear();
 
         security = Security.builder().lastTradePrice(15500).build();
-        broker = Broker.builder().brokerId(0).credit(10_000_000L).build();
+        original_broker_credit = 10000000;
+        broker = Broker.builder().brokerId(0).credit(original_broker_credit).build();
         shareholder = Shareholder.builder().shareholderId(0).build();
         shareholder.incPosition(security, 100_000);
         orders = Arrays.asList(
@@ -89,7 +88,7 @@ class StopLimitOrderTest {
     }
 
     @Test
-    void stop_limit_sell_order_inactive_enter(){
+    void stop_limit_sell_order_inactive_enter() {
         EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 440, 15450, 0, 0, 0, 0, 15450, true);
         orderHandler.handleEnterOrder(enterOrderRq);
         verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
@@ -97,7 +96,7 @@ class StopLimitOrderTest {
     }
 
     @Test
-    void stop_limit_buy_order_active_enter(){
+    void stop_limit_buy_order_active_enter() {
         EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15450, 0, 0, 0, 0, 15450, true);
         orderHandler.handleEnterOrder(enterOrderRq);
         verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
@@ -105,7 +104,7 @@ class StopLimitOrderTest {
     }
 
     @Test
-    void stop_limit_sell_order_active_enter(){
+    void stop_limit_sell_order_active_enter() {
         EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 300, 15800, 0, 0, 0, 0, 15550, true);
         orderHandler.handleEnterOrder(enterOrderRq);
         verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
@@ -113,29 +112,14 @@ class StopLimitOrderTest {
     }
 
     @Test
-    void stop_limit_order_activates_later(){
-
-    }
-
-    @Test
-    void last_trade_price_updates(){
+    void last_trade_price_updates() {
         EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 400, 15500, 0, 0, 0, 0, 0, false);
         orderHandler.handleEnterOrder(enterOrderRq);
         assertThat(security.getLastTradePrice()).isEqualTo(15500);
     }
 
     @Test
-    void stop_limit_order_activates_in_stop_price_order(){
-
-    }
-
-    @Test
-    void stop_limit_order_with_equal_stop_price_activates_in_entry_time_order(){
-
-    }
-
-    @Test
-    void create_order_with_stop_limit_and_minimum_execution_quantity_fails(){
+    void create_order_with_stop_limit_and_minimum_execution_quantity_fails() {
         EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 100, 15550, true);
         orderHandler.handleEnterOrder(enterOrderRq);
         ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
@@ -146,7 +130,7 @@ class StopLimitOrderTest {
     }
 
     @Test
-    void create_iceberg_order_with_stop_limit_fails(){
+    void create_iceberg_order_with_stop_limit_fails() {
         EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 100, 0, 15550, true);
         orderHandler.handleEnterOrder(enterOrderRq);
         ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
@@ -164,7 +148,7 @@ class StopLimitOrderTest {
         ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
         verify(eventPublisher).publish(orderRejectedCaptor.capture());
         OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
-        assertThat(broker.getCredit()).isEqualTo(3158000);
+        assertThat(broker.getCredit()).isEqualTo(original_broker_credit - enterOrderRq.getQuantity() * enterOrderRq.getPrice());
         assertThat(outputEvent.getErrors()).containsOnly(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
     }
 
@@ -176,28 +160,40 @@ class StopLimitOrderTest {
         ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
         verify(eventPublisher).publish(orderRejectedCaptor.capture());
         OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
-        assertThat(broker.getCredit()).isEqualTo(3158000);
+        assertThat(broker.getCredit()).isEqualTo(original_broker_credit - enterOrderRq.getQuantity() * enterOrderRq.getPrice());
         assertThat(outputEvent.getErrors()).containsOnly(Message.CANNOT_UPDATE_MINIMUM_EXECUTION_QUANTITY);
     }
 
     @Test
-    void update_quantity_and_price_for_inactive_stop_limit_order_successful(){
-
+    void update_quantity_and_price_for_inactive_stop_limit_order_successful() {
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
+        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 12, LocalDateTime.now(), BUY, 430, 15500, 0, 0, 0, 0, 15550, true);
+        orderHandler.handleEnterOrder(updateOrderRq);
+        verify(eventPublisher).publish((new OrderUpdatedEvent(2, 12)));
+        assertThat(broker.getCredit()).isEqualTo(original_broker_credit - updateOrderRq.getQuantity() * updateOrderRq.getPrice());
     }
 
     @Test
-    void update_stop_price_for_inactive_stop_limit_order_successful(){
-
+    void update_stop_price_for_inactive_stop_limit_order_successful() {
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
+        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15650, true);
+        orderHandler.handleEnterOrder(updateOrderRq);
+        verify(eventPublisher).publish((new OrderUpdatedEvent(2, 12)));
+        assertThat(broker.getCredit()).isEqualTo(original_broker_credit - enterOrderRq.getQuantity() * enterOrderRq.getPrice());
+        assertThat(security.getOrderBook().getInactiveBuyQueue().getFirst().getStopPrice()).isEqualTo(updateOrderRq.getStopPrice());
     }
 
     @Test
-    void update_stop_price_for_active_stop_limit_order_fails(){
-
+    void update_stop_price_for_active_stop_limit_order_fails() {
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 300, 15800, 0, 0, 0, 0, 15550, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
+        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 12, LocalDateTime.now(), SELL, 300, 15800, 0, 0, 0, 0, 15650, true);
+        orderHandler.handleEnterOrder(updateOrderRq);
+        assertThat(security.getOrderBook().findActiveByOrderId(SELL, 12, 15550, false).getStopPrice()).isEqualTo(enterOrderRq.getStopPrice());
     }
-
-    @Test
-    void delete_inactive_stop_limit_price_successful(){
-
-    }
-
 }

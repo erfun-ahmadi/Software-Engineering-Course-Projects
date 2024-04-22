@@ -91,6 +91,15 @@ public class OrderBook {
         return null;
     }
 
+    public Order findActiveByOrderId(Side side, long orderId, int stopPrice, boolean inactive) {
+        var queue = getQueue(side, 0, inactive);
+        for (Order order : queue) {
+            if (order.getOrderId() == orderId)
+                return order;
+        }
+        return null;
+    }
+
     public Order findByOrderId(Side side, long orderId, int stopPrice, boolean inactive) {
         var queue = getQueue(side, stopPrice, inactive);
         for (Order order : queue) {
@@ -155,7 +164,7 @@ public class OrderBook {
         var it = inactiveBuyQueue.listIterator();
         while (it.hasNext()) {
             Order order = it.next();
-            if ((order.getStopPrice() != 0 && order.getSide() == Side.BUY && order.getStopPrice() >= order.getSecurity().getLastTradePrice())){
+            if ((order.getStopPrice() != 0 && order.getSide() == Side.BUY && order.getStopPrice() <= order.getSecurity().getLastTradePrice())){
                 order.activate();
                 removeByOrderId(order.getSide() , order.getOrderId(), order.getStopPrice(), order.isInactive());
                 order.getBroker().increaseCreditBy(order.getValue());
@@ -166,7 +175,7 @@ public class OrderBook {
         it = inactiveSellQueue.listIterator();
         while (it.hasNext()) {
             Order order = it.next();
-            if ((order.getStopPrice() != 0 && order.getSide() == Side.SELL && order.getStopPrice() <= order.getSecurity().getLastTradePrice())){
+            if ((order.getStopPrice() != 0 && order.getSide() == Side.SELL && order.getStopPrice() >= order.getSecurity().getLastTradePrice())){
                 order.activate();
                 removeByOrderId(order.getSide() , order.getOrderId(), order.getStopPrice(), order.isInactive());
                 enqueue(order);

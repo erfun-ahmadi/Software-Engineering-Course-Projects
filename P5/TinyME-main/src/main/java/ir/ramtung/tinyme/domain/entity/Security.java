@@ -100,7 +100,7 @@ public class Security {
         if (!(order instanceof IcebergOrder) && updateOrderRq.getPeakSize() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
         if (updateOrderRq.getStopPrice()!=0){
-            if (order.getStopPrice()==0 || !order.inactive){
+            if (order.getStopPrice()!=updateOrderRq.getStopPrice() && !order.inactive){
                 throw new InvalidRequestException(Message.INVALID_UPDATE_STOP_PRICE);
             }
             if(((updateOrderRq.getStopPrice() != order.getStopPrice()) || (updateOrderRq.getPrice() != order.getPrice()) || (updateOrderRq.getQuantity() != order.getQuantity())) && (order.getSide() == Side.SELL)){
