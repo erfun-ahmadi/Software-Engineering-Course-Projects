@@ -87,6 +87,9 @@ public class OrderHandler {
                     if (!matchResult.trades().isEmpty()) {
                         eventPublisher.publish(new OrderExecutedEvent(1, matchResult.remainder().getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
                     }
+                    if(matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED){
+                        eventPublisher.publish(new OrderActivatedEvent(matchResult.remainder().getOrderId()));
+                    }
                 }
             }
 

@@ -16,7 +16,6 @@ public class OrderBook {
     private final LinkedList<Order> inactiveSellQueue;
     public final LinkedList<Order> activeQueue;
 
-    EventPublisher eventPublisher;
 
     public OrderBook() {
         buyQueue = new LinkedList<>();
@@ -160,7 +159,8 @@ public class OrderBook {
                 .sum();
     }
 
-    public void activateOrder(){
+    public List<Order> activateOrder(){
+        List<Order> activatedOrders = new LinkedList<>();
         var it = inactiveBuyQueue.listIterator();
         while (it.hasNext()) {
             Order order = it.next();
@@ -169,7 +169,7 @@ public class OrderBook {
                 removeByOrderId(order.getSide() , order.getOrderId(), order.getStopPrice(), order.isInactive());
                 order.getBroker().increaseCreditBy(order.getValue());
                 enqueue(order);
-                eventPublisher.publish(new OrderActivatedEvent(order.getOrderId()));
+                activatedOrders.add(order);
             }
         }
         it = inactiveSellQueue.listIterator();
@@ -179,8 +179,9 @@ public class OrderBook {
                 order.activate();
                 removeByOrderId(order.getSide() , order.getOrderId(), order.getStopPrice(), order.isInactive());
                 enqueue(order);
-                eventPublisher.publish(new OrderActivatedEvent(order.getOrderId()));
+                activatedOrders.add(order);
             }
         }
+        return activatedOrders;
     }
 }

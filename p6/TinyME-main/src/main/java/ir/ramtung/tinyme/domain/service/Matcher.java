@@ -4,6 +4,7 @@ import ir.ramtung.tinyme.domain.entity.*;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.ListIterator;
 
 @Service
@@ -133,7 +134,13 @@ public class Matcher {
         if(!lastResult.trades().isEmpty()) {
             int lastPrice = lastResult.trades().getLast().getPrice();
             lastResult.remainder().getSecurity().setLastTradePrice(lastPrice);
-            lastResult.remainder().getSecurity().getOrderBook().activateOrder();
+            List<Order> activatedOrders = lastResult.remainder().getSecurity().getOrderBook().activateOrder();
+            var it = activatedOrders.listIterator();
+            if (it.hasNext()) {
+                Order order = it.next();
+                MatchResult result = MatchResult.stopLimitOrderActivated(order);
+                matchResults.add(result);
+            }
         }
     }
 
