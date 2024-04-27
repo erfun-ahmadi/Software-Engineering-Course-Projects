@@ -9,7 +9,7 @@ import java.util.ListIterator;
 
 @Service
 public class Matcher {
-    private LinkedList <MatchResult> matchResults=new LinkedList<>();
+    private LinkedList<MatchResult> matchResults = new LinkedList<>();
 
     public MatchResult match(Order newOrder) {
         OrderBook orderBook = newOrder.getSecurity().getOrderBook();
@@ -126,12 +126,12 @@ public class Matcher {
         }
     }
 
-    public void clearMatchResults(){
+    public void clearMatchResults() {
         matchResults.clear();
     }
 
-    private void activator(MatchResult lastResult){
-        if(!lastResult.trades().isEmpty()) {
+    private void activator(MatchResult lastResult) {
+        if (!lastResult.trades().isEmpty()) {
             int lastPrice = lastResult.trades().getLast().getPrice();
             lastResult.remainder().getSecurity().setLastTradePrice(lastPrice);
             List<Order> activatedOrders = lastResult.remainder().getSecurity().getOrderBook().activateOrder();
@@ -144,11 +144,11 @@ public class Matcher {
         }
     }
 
-    private void executeActivates(MatchResult result){
+    private void executeActivates(MatchResult result) {
         var it = result.remainder().getSecurity().getOrderBook().getActiveQueue().listIterator();
         if (it.hasNext()) {
             Order order = it.next();
-            result.remainder().getSecurity().getOrderBook().removeByOrderId(order.getSide(), order.getOrderId(), order.getStopPrice(), order.isInactive());
+            result.remainder().getSecurity().getOrderBook().dequeueFromActiveQueue(order);
             execute(order);
         }
     }

@@ -107,6 +107,7 @@ class StopLimitOrderTest {
         orderHandler.handleEnterOrder(enterOrderRq);
         verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
         assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
     }
 
     @Test
@@ -115,6 +116,7 @@ class StopLimitOrderTest {
         orderHandler.handleEnterOrder(enterOrderRq);
         verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
         assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
     }
 
     @Test
@@ -226,7 +228,7 @@ class StopLimitOrderTest {
 
     @Test
     void inactive_buy_stop_limit_order_activates_after_new_match() {
-        EnterOrderRq enterInactiveOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
+        EnterOrderRq enterInactiveOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 16000, 0, 0, 0, 0, 15550, true);
         orderHandler.handleEnterOrder(enterInactiveOrderRq);
         verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
         Order matchingOrder = new Order(13, security, Side.SELL, 300, 15600, 0, broker, otherShareholder, 0);
@@ -241,7 +243,7 @@ class StopLimitOrderTest {
     @Test
     void inactive_sell_stop_limit_order_activates_after_new_match() {
         security.setLastTradePrice(15800);
-        EnterOrderRq enterInactiveOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 440, 15700, 0, 0, 0, 0, 15700, true);
+        EnterOrderRq enterInactiveOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 440, 16000, 0, 0, 0, 0, 15700, true);
         orderHandler.handleEnterOrder(enterInactiveOrderRq);
         verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
         Order matchingOrder = new Order(13, security, Side.SELL, 300, 15700, 0, broker, otherShareholder, 0);

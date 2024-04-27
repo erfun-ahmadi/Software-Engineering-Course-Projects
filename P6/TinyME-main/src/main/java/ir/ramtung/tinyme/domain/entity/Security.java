@@ -77,8 +77,8 @@ public class Security {
             return matchResults;
         }
         matcher.clearMatchResults();
-        LinkedList<MatchResult> results = matcher.execute(order);
-        return results;
+        matchResults.addAll(matcher.execute(order));
+        return matchResults;
     }
 
     public void deleteOrder(DeleteOrderRq deleteOrderRq) throws InvalidRequestException {
