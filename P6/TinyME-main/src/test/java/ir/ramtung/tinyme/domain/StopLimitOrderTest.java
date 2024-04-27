@@ -6,7 +6,9 @@ import ir.ramtung.tinyme.domain.service.Matcher;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
+import ir.ramtung.tinyme.messaging.TradeDTO;
 import ir.ramtung.tinyme.messaging.event.*;
+import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
@@ -45,6 +47,7 @@ class StopLimitOrderTest {
     private Security security;
     private Broker broker;
     private Shareholder shareholder;
+    private Shareholder otherShareholder;
     private List<Order> orders;
     @Autowired
     Matcher matcher;
@@ -61,6 +64,8 @@ class StopLimitOrderTest {
         broker = Broker.builder().brokerId(0).credit(original_broker_credit).build();
         shareholder = Shareholder.builder().shareholderId(0).build();
         shareholder.incPosition(security, 100_000);
+        otherShareholder = Shareholder.builder().shareholderId(1).build();
+        otherShareholder.incPosition(security, 100_000);
         orders = Arrays.asList(
                 new Order(1, security, BUY, 304, 15700, 0, broker, shareholder, 0),
                 new Order(2, security, BUY, 43, 15500, 0, broker, shareholder, 0),
@@ -77,6 +82,7 @@ class StopLimitOrderTest {
         securityRepository.addSecurity(security);
         brokerRepository.addBroker(broker);
         shareholderRepository.addShareholder(shareholder);
+        shareholderRepository.addShareholder(otherShareholder);
     }
 
     @Test
@@ -202,4 +208,48 @@ class StopLimitOrderTest {
         assertThat(outputEvent.getErrors()).containsOnly(Message.INVALID_UPDATE_STOP_PRICE);
     }
 
+    @Test
+    void delete_buy_inactive_stop_limit_order_successful() {
+        Order someOrder = new Order(100, security, Side.BUY, 300, 15500, 0, broker, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1600, true);
+        security.getOrderBook().enqueue(someOrder);
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(1, security.getIsin(), Side.BUY, 100, 1600, true));
+        verify(eventPublisher).publish(new OrderDeletedEvent(1, 100));
+    }
+
+    @Test
+    void delete_sell_inactive_stop_limit_order_successful() {
+        Order someOrder = new Order(100, security, Side.SELL, 300, 15500, 0, broker, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1600, true);
+        security.getOrderBook().enqueue(someOrder);
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(1, security.getIsin(), Side.SELL, 100, 1600, true));
+        verify(eventPublisher).publish(new OrderDeletedEvent(1, 100));
+    }
+
+    @Test
+    void inactive_buy_stop_limit_order_activates_after_new_match() {
+        EnterOrderRq enterInactiveOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
+        orderHandler.handleEnterOrder(enterInactiveOrderRq);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
+        Order matchingOrder = new Order(13, security, Side.SELL, 300, 15600, 0, broker, otherShareholder, 0);
+        EnterOrderRq matchOrderRequest = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 13, LocalDateTime.now(), SELL, 300, 15600, 0, 1, 0, 0, 0, false);
+        orderHandler.handleEnterOrder(matchOrderRequest);
+        Trade trade = new Trade(security, 15700, 300, security.getOrderBook().findByOrderId(BUY, 1, 0, false), matchingOrder);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 13)));
+        verify(eventPublisher).publish(new OrderExecutedEvent(matchOrderRequest.getRequestId(), matchOrderRequest.getOrderId(), List.of(new TradeDTO(trade))));
+        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
+    }
+
+    @Test
+    void inactive_sell_stop_limit_order_activates_after_new_match() {
+        security.setLastTradePrice(15800);
+        EnterOrderRq enterInactiveOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 440, 15700, 0, 0, 0, 0, 15700, true);
+        orderHandler.handleEnterOrder(enterInactiveOrderRq);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
+        Order matchingOrder = new Order(13, security, Side.SELL, 300, 15700, 0, broker, otherShareholder, 0);
+        EnterOrderRq matchOrderRequest = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 13, LocalDateTime.now(), SELL, 300, 15700, 0, 1, 0, 0, 0, false);
+        orderHandler.handleEnterOrder(matchOrderRequest);
+        Trade trade = new Trade(security, 15700, 300, security.getOrderBook().findByOrderId(BUY, 1, 0, false), matchingOrder);
+        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 13)));
+        verify(eventPublisher).publish(new OrderExecutedEvent(matchOrderRequest.getRequestId(), matchOrderRequest.getOrderId(), List.of(new TradeDTO(trade))));
+        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
+    }
 }

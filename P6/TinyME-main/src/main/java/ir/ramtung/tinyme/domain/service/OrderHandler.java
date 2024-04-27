@@ -48,7 +48,7 @@ public class OrderHandler {
             else
                 matchResults = security.updateOrder(enterOrderRq, matcher);
 
-            if(matchResults.isEmpty()) {
+            if (matchResults.isEmpty()) {
                 eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
                 return;
             }
@@ -67,11 +67,7 @@ public class OrderHandler {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER)));
                 return;
             }
-            if (matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACCEPTED) {
-                eventPublisher.publish(new OrderAcceptedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
-                return;
-            }
-            if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER)
+            if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER || matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACCEPTED)
                 eventPublisher.publish(new OrderAcceptedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
             else
                 eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
@@ -87,7 +83,7 @@ public class OrderHandler {
                     if (!matchResult.trades().isEmpty()) {
                         eventPublisher.publish(new OrderExecutedEvent(1, matchResult.remainder().getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
                     }
-                    if(matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED){
+                    if (matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED) {
                         eventPublisher.publish(new OrderActivatedEvent(matchResult.remainder().getOrderId()));
                     }
                 }
@@ -147,5 +143,4 @@ public class OrderHandler {
         if (!errors.isEmpty())
             throw new InvalidRequestException(errors);
     }
-
 }
