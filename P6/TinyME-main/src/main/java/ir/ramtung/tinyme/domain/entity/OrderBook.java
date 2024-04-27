@@ -72,31 +72,30 @@ public class OrderBook {
     }
 
     private LinkedList<Order> getQueue(Side side, int stopPrice, boolean inactive) {
-        if (side == Side.BUY && stopPrice == 0) {
+        if (side == Side.BUY && !inactive) {
             return buyQueue;
         }
-        else if (side == Side.SELL && stopPrice == 0) {
+        else if (side == Side.SELL && !inactive) {
             return sellQueue;
         }
-        else if (side == Side.BUY && stopPrice != 0 && inactive) {
+        else if (side == Side.BUY ) {
             return inactiveBuyQueue;
         }
-        else if (side == Side.SELL && stopPrice != 0 && inactive) {
+        else if (side == Side.SELL) {
             return inactiveSellQueue;
-        }
-        else if (stopPrice != 0 && !inactive) {
-            return activeQueue;
         }
         return null;
     }
 
-    public Order findActiveByOrderId(Side side, long orderId, int stopPrice, boolean inactive) {
-        var queue = getQueue(side, 0, inactive);
-        for (Order order : queue) {
-            if (order.getOrderId() == orderId)
-                return order;
+    public void enqueueInActiveQueue(Order order) {
+        ListIterator<Order> it = getActiveQueue().listIterator();
+        while (it.hasNext()) {
+            if (order.queuesBefore(it.next())) {
+                it.previous();
+                break;
+            }
         }
-        return null;
+        it.add(order);
     }
 
     public Order findByOrderId(Side side, long orderId, int stopPrice, boolean inactive) {
@@ -168,7 +167,7 @@ public class OrderBook {
                 order.activate();
                 removeByOrderId(order.getSide() , order.getOrderId(), order.getStopPrice(), order.isInactive());
                 order.getBroker().increaseCreditBy(order.getValue());
-                enqueue(order);
+                enqueueInActiveQueue(order);
                 activatedOrders.add(order);
             }
         }
@@ -178,7 +177,7 @@ public class OrderBook {
             if ((order.getStopPrice() != 0 && order.getSide() == Side.SELL && order.getStopPrice() >= order.getSecurity().getLastTradePrice())){
                 order.activate();
                 removeByOrderId(order.getSide() , order.getOrderId(), order.getStopPrice(), order.isInactive());
-                enqueue(order);
+                enqueueInActiveQueue(order);
                 activatedOrders.add(order);
             }
         }

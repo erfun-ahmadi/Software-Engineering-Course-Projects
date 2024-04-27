@@ -573,7 +573,7 @@ public class OrderHandlerTest {
         shareholder.decPosition(security, 99_500);
         broker3.increaseCreditBy(100_000_000);
 
-        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 3, LocalDateTime.now(), Side.BUY, 500, 545, broker3.getBrokerId(), shareholder1.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 3, LocalDateTime.now(), Side.BUY, 500, 545, broker3.getBrokerId(), shareholder1.getShareholderId(), 0, 0, 0, false));
 
         verify(eventPublisher).publish(any(OrderAcceptedEvent.class));
         assertThat(shareholder1.hasEnoughPositionsOn(security, 100_000)).isTrue();

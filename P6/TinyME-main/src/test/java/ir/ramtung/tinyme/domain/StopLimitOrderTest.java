@@ -192,8 +192,14 @@ class StopLimitOrderTest {
         EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 300, 15800, 0, 0, 0, 0, 15550, true);
         orderHandler.handleEnterOrder(enterOrderRq);
         verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 12, LocalDateTime.now(), SELL, 300, 15800, 0, 0, 0, 0, 15650, true);
+        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 12, LocalDateTime.now(), SELL, 300, 15800, 0, 0, 0, 0, 15650, false);
         orderHandler.handleEnterOrder(updateOrderRq);
-        assertThat(security.getOrderBook().findActiveByOrderId(SELL, 12, 15550, false).getStopPrice()).isEqualTo(enterOrderRq.getStopPrice());
+        assertThat(security.getOrderBook().findByOrderId(SELL, 12, 15550, false).getStopPrice()).isEqualTo(enterOrderRq.getStopPrice());
+        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
+        verify(eventPublisher).publish(orderRejectedCaptor.capture());
+        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
+        assertThat(outputEvent.getOrderId()).isEqualTo(12);
+        assertThat(outputEvent.getErrors()).containsOnly(Message.INVALID_UPDATE_STOP_PRICE);
     }
+
 }

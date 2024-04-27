@@ -59,21 +59,21 @@ class OrderBookTest {
     @Test
     void removes_the_first_order_by_id() {
         OrderBook orderBook = security.getOrderBook();
-        orderBook.removeByOrderId(Side.BUY, 1, 0, true);
+        orderBook.removeByOrderId(Side.BUY, 1, 0, false);
         assertThat(orderBook.getBuyQueue()).isEqualTo(orders.subList(1, 5));
     }
 
     @Test
     void fails_to_remove_the_first_order_by_id_in_the_wrong_queue() {
         OrderBook orderBook = security.getOrderBook();
-        orderBook.removeByOrderId(Side.SELL, 1, 0, true);
+        orderBook.removeByOrderId(Side.SELL, 1, 0, false);
         assertThat(orderBook.getBuyQueue()).isEqualTo(orders.subList(0, 5));
     }
 
     @Test
     void removes_the_last_order_by_id() {
         OrderBook orderBook = security.getOrderBook();
-        orderBook.removeByOrderId(Side.SELL, 10, 0, true);
+        orderBook.removeByOrderId(Side.SELL, 10, 0, false);
         assertThat(orderBook.getSellQueue()).isEqualTo(orders.subList(5, 9));
     }
 }
