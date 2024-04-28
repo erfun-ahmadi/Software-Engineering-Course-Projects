@@ -173,6 +173,7 @@ public class OrderBook {
                 order.activate();
                 order.getBroker().increaseCreditBy(order.getValue());
                 enqueueInActiveQueue(order);
+                it = inactiveBuyQueue.listIterator();
                 activatedOrders.add(order);
             }
         }
@@ -183,6 +184,7 @@ public class OrderBook {
                 removeByOrderId(order.getSide(), order.getOrderId(), order.getStopPrice(), order.isInactive());
                 order.activate();
                 enqueueInActiveQueue(order);
+                it = inactiveSellQueue.listIterator();
                 activatedOrders.add(order);
             }
         }

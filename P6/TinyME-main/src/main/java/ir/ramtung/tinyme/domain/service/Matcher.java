@@ -136,7 +136,7 @@ public class Matcher {
             lastResult.remainder().getSecurity().setLastTradePrice(lastPrice);
             List<Order> activatedOrders = lastResult.remainder().getSecurity().getOrderBook().activateOrder();
             var it = activatedOrders.listIterator();
-            if (it.hasNext()) {
+            while (it.hasNext()) {
                 Order order = it.next();
                 MatchResult result = MatchResult.stopLimitOrderActivated(order);
                 matchResults.add(result);

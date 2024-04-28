@@ -8,7 +8,6 @@ import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.TradeDTO;
 import ir.ramtung.tinyme.messaging.event.*;
-import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
@@ -45,213 +44,457 @@ class StopLimitOrderTest {
     @Autowired
     ShareholderRepository shareholderRepository;
     private Security security;
-    private Broker broker;
     private Shareholder shareholder;
-    private Shareholder otherShareholder;
-    private List<Order> orders;
-    @Autowired
-    Matcher matcher;
-    long original_broker_credit;
+    private Broker broker1;
+    private Broker broker2;
+    private Broker broker3;
 
     @BeforeEach
-    void setupOrderBook() {
+    void setup() {
         securityRepository.clear();
         brokerRepository.clear();
         shareholderRepository.clear();
 
-        security = Security.builder().lastTradePrice(15500).build();
-        original_broker_credit = 10000000;
-        broker = Broker.builder().brokerId(0).credit(original_broker_credit).build();
-        shareholder = Shareholder.builder().shareholderId(0).build();
-        shareholder.incPosition(security, 100_000);
-        otherShareholder = Shareholder.builder().shareholderId(1).build();
-        otherShareholder.incPosition(security, 100_000);
-        orders = Arrays.asList(
-                new Order(1, security, BUY, 304, 15700, 0, broker, shareholder, 0),
-                new Order(2, security, BUY, 43, 15500, 0, broker, shareholder, 0),
-                new Order(3, security, BUY, 445, 15450, 0, broker, shareholder, 0),
-                new Order(4, security, BUY, 526, 15450, 0, broker, shareholder, 0),
-                new Order(5, security, BUY, 1000, 15400, 0, broker, shareholder, 0),
-                new Order(6, security, Side.SELL, 350, 15800, 0, broker, shareholder, 0),
-                new Order(7, security, Side.SELL, 285, 15810, 0, broker, shareholder, 0),
-                new Order(8, security, Side.SELL, 800, 15810, 0, broker, shareholder, 0),
-                new Order(9, security, Side.SELL, 340, 15820, 0, broker, shareholder, 0),
-                new Order(10, security, Side.SELL, 65, 15820, 0, broker, shareholder, 0)
-        );
-        orders.forEach(order -> security.getOrderBook().enqueue(order));
+        security = Security.builder().lastTradePrice(300).isin("ABC").build();
         securityRepository.addSecurity(security);
-        brokerRepository.addBroker(broker);
+
+        shareholder = Shareholder.builder().build();
+        shareholder.incPosition(security, 100_000);
         shareholderRepository.addShareholder(shareholder);
-        shareholderRepository.addShareholder(otherShareholder);
-    }
 
-    @Test
-    void stop_limit_buy_order_inactive_enter() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
-    }
-
-    @Test
-    void stop_limit_sell_order_inactive_enter() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 440, 15450, 0, 0, 0, 0, 15450, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
-    }
-
-    @Test
-    void stop_limit_buy_order_active_enter() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15450, 0, 0, 0, 0, 15450, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
-        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
-    }
-
-    @Test
-    void stop_limit_sell_order_active_enter() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 300, 15800, 0, 0, 0, 0, 15550, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
-        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
+        broker1 = Broker.builder().brokerId(1).build();
+        broker2 = Broker.builder().brokerId(2).build();
+        broker3 = Broker.builder().brokerId(2).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        brokerRepository.addBroker(broker3);
     }
 
     @Test
     void last_trade_price_updates() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 400, 15500, 0, 0, 0, 0, 0, false);
+        assertThat(security.getLastTradePrice()).isEqualTo(300);
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        assertThat(security.getLastTradePrice()).isEqualTo(500);
+    }
+
+    @Test
+    void stop_limit_buy_order_enters_inactivated() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 1000, true));
+        verify(eventPublisher).publish((new OrderAcceptedEvent(3, 300)));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(0);
+    }
+
+    @Test
+    void stop_limit_sell_order_enters_inactivated() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.SELL, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 100, true));
+        verify(eventPublisher).publish((new OrderAcceptedEvent(3, 300)));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(0);
+    }
+
+
+    @Test
+    void stop_limit_buy_order_enters_activated() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 100, true));
+        verify(eventPublisher).publish((new OrderAcceptedEvent(3, 300)));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(1);
+    }
+
+    @Test
+    void stop_limit_sell_order_enters_activated() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.SELL, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 1000, true));
+        verify(eventPublisher).publish((new OrderAcceptedEvent(3, 300)));
+        verify(eventPublisher).publish((new OrderActivatedEvent(300)));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(1);
+    }
+
+    @Test
+    void stop_limit_buy_order_enters_inactivated_and_activates_later() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 400, true));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        verify(eventPublisher).publish((new OrderAcceptedEvent(3, 300)));
+        verify(eventPublisher).publish((new OrderActivatedEvent(300)));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(1);
+    }
+
+    @Test
+    void create_buy_order_with_stop_limit_and_minimum_execution_quantity_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 10, 1000, true));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+    }
+
+    @Test
+    void create_sell_order_with_stop_limit_and_minimum_execution_quantity_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.SELL, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 10, 1000, true));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+    }
+
+    @Test
+    void create_buy_iceberg_order_with_stop_limit_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 10, 0, 1000, true);
         orderHandler.handleEnterOrder(enterOrderRq);
-        assertThat(security.getLastTradePrice()).isEqualTo(15500);
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
     }
 
     @Test
-    void create_order_with_stop_limit_and_minimum_execution_quantity_fails() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 100, 15550, true);
+    void create_sell_iceberg_order_with_stop_limit_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.SELL, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 10, 0, 1000, true));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+    }
+
+    @Test
+    void update_peak_size_for_buy_stop_limit_order_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.BUY, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 10, 0, 1000, true));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+    }
+
+    @Test
+    void update_peak_size_for_sell_stop_limit_order_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.SELL, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
+        security.getOrderBook().enqueue(order);
+        EnterOrderRq enterOrderRq = EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.SELL, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 10, 0, 1000, true);
         orderHandler.handleEnterOrder(enterOrderRq);
-        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
-        verify(eventPublisher).publish(orderRejectedCaptor.capture());
-        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
-        assertThat(outputEvent.getOrderId()).isEqualTo(12);
-        assertThat(outputEvent.getErrors()).containsOnly(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER);
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
     }
 
     @Test
-    void create_iceberg_order_with_stop_limit_fails() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 100, 0, 15550, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
-        verify(eventPublisher).publish(orderRejectedCaptor.capture());
-        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
-        assertThat(outputEvent.getOrderId()).isEqualTo(12);
-        assertThat(outputEvent.getErrors()).containsOnly(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER);
+    void update_minimum_execution_quantity_for_buy_stop_limit_order_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.BUY, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 10, 1000, true));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.CANNOT_UPDATE_MINIMUM_EXECUTION_QUANTITY))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+        assertThat(security.getOrderBook().findByOrderId(BUY, 100, 1000, true).getMinimumExecutionQuantity()).isEqualTo(0);
     }
 
     @Test
-    void update_peak_size_for_stop_limit_order_fails() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 100, 0, 15550, true));
-        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
-        verify(eventPublisher).publish(orderRejectedCaptor.capture());
-        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
-        assertThat(broker.getCredit()).isEqualTo(original_broker_credit - enterOrderRq.getQuantity() * enterOrderRq.getPrice());
-        assertThat(outputEvent.getErrors()).containsOnly(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
+    void update_minimum_execution_quantity_for_sell_stop_limit_order_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.SELL, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.SELL, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 10, 1000, true));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.CANNOT_UPDATE_MINIMUM_EXECUTION_QUANTITY))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+        assertThat(security.getOrderBook().findByOrderId(SELL, 100, 1000, true).getMinimumExecutionQuantity()).isEqualTo(0);
     }
 
     @Test
-    void update_minimum_execution_quantity_for_stop_limit_order_fails() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 100, 100, 15550, true));
-        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
-        verify(eventPublisher).publish(orderRejectedCaptor.capture());
-        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
-        assertThat(broker.getCredit()).isEqualTo(original_broker_credit - enterOrderRq.getQuantity() * enterOrderRq.getPrice());
-        assertThat(outputEvent.getErrors()).containsOnly(Message.CANNOT_UPDATE_MINIMUM_EXECUTION_QUANTITY);
+    void update_quantity_for_inactive_buy_stop_limit_order_successful() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.BUY, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 1000, true));
+        verify(eventPublisher).publish((new OrderUpdatedEvent(1, 100)));
+        assertThat(broker1.getCredit()).isEqualTo(95000);
+        assertThat(security.getOrderBook().findByOrderId(BUY, 100, 1000, true).getQuantity()).isEqualTo(40);
     }
 
     @Test
-    void update_quantity_and_price_for_inactive_stop_limit_order_successful() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 12, LocalDateTime.now(), BUY, 430, 15500, 0, 0, 0, 0, 15550, true);
-        orderHandler.handleEnterOrder(updateOrderRq);
-        verify(eventPublisher).publish((new OrderUpdatedEvent(2, 12)));
-        assertThat(broker.getCredit()).isEqualTo(original_broker_credit - updateOrderRq.getQuantity() * updateOrderRq.getPrice());
+    void update_quantity_for_inactive_sell_stop_limit_order_successful() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, SELL, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 100, true);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), SELL, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 100, true));
+        verify(eventPublisher).publish((new OrderUpdatedEvent(1, 100)));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+        assertThat(security.getOrderBook().findByOrderId(SELL, 100, 100, true).getQuantity()).isEqualTo(40);
     }
 
     @Test
-    void update_stop_price_for_inactive_stop_limit_order_successful() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15550, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 15550, 0, 0, 0, 0, 15650, true);
-        orderHandler.handleEnterOrder(updateOrderRq);
-        verify(eventPublisher).publish((new OrderUpdatedEvent(2, 12)));
-        assertThat(broker.getCredit()).isEqualTo(original_broker_credit - enterOrderRq.getQuantity() * enterOrderRq.getPrice());
-        assertThat(security.getOrderBook().getInactiveBuyQueue().getFirst().getStopPrice()).isEqualTo(updateOrderRq.getStopPrice());
+    void update_price_for_inactive_buy_stop_limit_order_successful() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.BUY, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 600, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 1000, true));
+        verify(eventPublisher).publish((new OrderUpdatedEvent(1, 100)));
+        assertThat(broker1.getCredit()).isEqualTo(97000);
+        assertThat(security.getOrderBook().findByOrderId(BUY, 100, 1000, true).getPrice()).isEqualTo(600);
     }
 
     @Test
-    void update_stop_price_for_active_stop_limit_order_fails() {
-        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 300, 15800, 0, 0, 0, 0, 15550, true);
-        orderHandler.handleEnterOrder(enterOrderRq);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        EnterOrderRq updateOrderRq = EnterOrderRq.createUpdateOrderRq(2, security.getIsin(), 12, LocalDateTime.now(), SELL, 300, 15800, 0, 0, 0, 0, 15650, false);
-        orderHandler.handleEnterOrder(updateOrderRq);
-        assertThat(security.getOrderBook().findByOrderId(SELL, 12, 15550, false).getStopPrice()).isEqualTo(enterOrderRq.getStopPrice());
-        ArgumentCaptor<OrderRejectedEvent> orderRejectedCaptor = ArgumentCaptor.forClass(OrderRejectedEvent.class);
-        verify(eventPublisher).publish(orderRejectedCaptor.capture());
-        OrderRejectedEvent outputEvent = orderRejectedCaptor.getValue();
-        assertThat(outputEvent.getOrderId()).isEqualTo(12);
-        assertThat(outputEvent.getErrors()).containsOnly(Message.INVALID_UPDATE_STOP_PRICE);
+    void update_price_for_inactive_sell_stop_limit_order_successful() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, SELL, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 100, true);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), SELL, 30, 600, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 100, true));
+        verify(eventPublisher).publish((new OrderUpdatedEvent(1, 100)));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+        assertThat(security.getOrderBook().findByOrderId(SELL, 100, 1000, true).getPrice()).isEqualTo(600);
     }
 
     @Test
-    void delete_buy_inactive_stop_limit_order_successful() {
-        Order someOrder = new Order(100, security, Side.BUY, 300, 15500, 0, broker, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1600, true);
-        security.getOrderBook().enqueue(someOrder);
-        orderHandler.handleDeleteOrder(new DeleteOrderRq(1, security.getIsin(), Side.BUY, 100, 1600, true));
-        verify(eventPublisher).publish(new OrderDeletedEvent(1, 100));
+    void update_stop_price_for_buy_inactive_stop_limit_order_successful() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.BUY, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 2000, true));
+        verify(eventPublisher).publish((new OrderUpdatedEvent(1, 100)));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+        assertThat(security.getOrderBook().findByOrderId(BUY, 100, 1000, true).getStopPrice()).isEqualTo(2000);
     }
 
     @Test
-    void delete_sell_inactive_stop_limit_order_successful() {
-        Order someOrder = new Order(100, security, Side.SELL, 300, 15500, 0, broker, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1600, true);
-        security.getOrderBook().enqueue(someOrder);
-        orderHandler.handleDeleteOrder(new DeleteOrderRq(1, security.getIsin(), Side.SELL, 100, 1600, true));
-        verify(eventPublisher).publish(new OrderDeletedEvent(1, 100));
+    void update_stop_price_for_sell_inactive_stop_limit_order_successful() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.SELL, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 100, true);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.SELL, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 200, true));
+        verify(eventPublisher).publish((new OrderUpdatedEvent(1, 100)));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+        assertThat(security.getOrderBook().findByOrderId(SELL, 100, 1000, true).getStopPrice()).isEqualTo(200);
     }
 
     @Test
-    void inactive_buy_stop_limit_order_activates_after_new_match() {
-        EnterOrderRq enterInactiveOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), BUY, 440, 16000, 0, 0, 0, 0, 15550, true);
-        orderHandler.handleEnterOrder(enterInactiveOrderRq);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        Order matchingOrder = new Order(13, security, Side.SELL, 300, 15600, 0, broker, otherShareholder, 0);
-        EnterOrderRq matchOrderRequest = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 13, LocalDateTime.now(), SELL, 300, 15600, 0, 1, 0, 0, 0, false);
-        orderHandler.handleEnterOrder(matchOrderRequest);
-        Trade trade = new Trade(security, 15700, 300, security.getOrderBook().findByOrderId(BUY, 1, 0, false), matchingOrder);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 13)));
-        verify(eventPublisher).publish(new OrderExecutedEvent(matchOrderRequest.getRequestId(), matchOrderRequest.getOrderId(), List.of(new TradeDTO(trade))));
-        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
+    void update_stop_price_for_active_buy_stop_limit_order_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.BUY, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, false);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 2000, false));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.INVALID_UPDATE_STOP_PRICE))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+        assertThat(security.getOrderBook().findByOrderId(BUY, 100, 1000, false).getStopPrice()).isEqualTo(1000);
     }
 
     @Test
-    void inactive_sell_stop_limit_order_activates_after_new_match() {
-        security.setLastTradePrice(15800);
-        EnterOrderRq enterInactiveOrderRq = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 12, LocalDateTime.now(), SELL, 440, 16000, 0, 0, 0, 0, 15700, true);
-        orderHandler.handleEnterOrder(enterInactiveOrderRq);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 12)));
-        Order matchingOrder = new Order(13, security, Side.SELL, 300, 15700, 0, broker, otherShareholder, 0);
-        EnterOrderRq matchOrderRequest = EnterOrderRq.createNewOrderRq(1, security.getIsin(), 13, LocalDateTime.now(), SELL, 300, 15700, 0, 1, 0, 0, 0, false);
-        orderHandler.handleEnterOrder(matchOrderRequest);
-        Trade trade = new Trade(security, 15700, 300, security.getOrderBook().findByOrderId(BUY, 1, 0, false), matchingOrder);
-        verify(eventPublisher).publish((new OrderAcceptedEvent(1, 13)));
-        verify(eventPublisher).publish(new OrderExecutedEvent(matchOrderRequest.getRequestId(), matchOrderRequest.getOrderId(), List.of(new TradeDTO(trade))));
-        verify(eventPublisher).publish((new OrderActivatedEvent(12)));
+    void update_stop_price_for_active_sell_stop_limit_order_fails() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        Order order = new Order(100, security, Side.SELL, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, false);
+        security.getOrderBook().enqueue(order);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.SELL, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 2000, false));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.INVALID_UPDATE_STOP_PRICE))));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+        assertThat(security.getOrderBook().findByOrderId(SELL, 100, 1000, false).getStopPrice()).isEqualTo(1000);
     }
+
+    @Test
+    void stop_limit_sell_order_enters_inactivated_and_activates_later() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.SELL, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 200, true));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 100, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 100, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        verify(eventPublisher).publish((new OrderAcceptedEvent(3, 300)));
+        verify(eventPublisher).publish((new OrderActivatedEvent(300)));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(1);
+    }
+
+    @Test
+    void stop_limit_sell_order_enters_inactivated_and_activates_later_and_match() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.SELL, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 200, true));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 100, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 100, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(4, "ABC", 400, LocalDateTime.now(), Side.BUY, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        Order stopLimitOrder = new Order(300, security, Side.SELL, 30, 500, 0, broker1, shareholder, 200);
+        Order matchWithStopLimitOrder = new Order(400, security, Side.BUY, 30, 500, 0, broker2, shareholder, 0);
+        Trade trade = new Trade(security, 500, 30,matchWithStopLimitOrder , stopLimitOrder);
+        verify(eventPublisher).publish((new OrderActivatedEvent(300)));
+        verify(eventPublisher).publish(new OrderExecutedEvent(4, 400, List.of(new TradeDTO(trade))));
+    }
+
+    @Test
+    void stop_limit_buy_order_enters_inactivated_and_activates_later_and_match() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 400, true));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(4, "ABC", 400, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        Order stopLimitOrder = new Order(300, security, Side.BUY, 30, 500, 0, broker1, shareholder, 200);
+        Order matchWithStopLimitOrder = new Order(400, security, Side.SELL, 30, 500, 0, broker2, shareholder, 0);
+        Trade trade = new Trade(security, 500, 30,matchWithStopLimitOrder , stopLimitOrder);
+        verify(eventPublisher).publish((new OrderActivatedEvent(300)));
+        verify(eventPublisher).publish(new OrderExecutedEvent(4, 400, List.of(new TradeDTO(trade))));
+    }
+
+
+    @Test
+    void stop_limits_sell_order_enters_inactivated_and_several_activations_later() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.SELL, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 200, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(5, "ABC", 500, LocalDateTime.now(), Side.SELL, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 230, true));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 100, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 100, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        verify(eventPublisher).publish((new OrderActivatedEvent(300)));
+        verify(eventPublisher).publish((new OrderActivatedEvent(500)));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(2);
+    }
+
+    @Test
+    void stop_limits_buy_order_enters_inactivated_and_several_activations_later() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 400, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(5, "ABC", 500, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 450, true));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        verify(eventPublisher).publish((new OrderActivatedEvent(300)));
+        verify(eventPublisher).publish((new OrderActivatedEvent(500)));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(2);
+    }
+
+    @Test
+    void stop_limits_buy_order_enters_inactivated_and_activate_and_match_later_causing_new_buy_activation() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.BUY, 30, 600, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 400, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(5, "ABC", 500, LocalDateTime.now(), Side.BUY, 30, 100, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 550, true));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(4, "ABC", 400, LocalDateTime.now(), Side.SELL, 30, 600, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        verify(eventPublisher).publish((new OrderActivatedEvent(500)));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+    }
+
+    @Test
+    void stop_limits_sell_order_enters_inactivated_and_activate_and_match_later_causing_new_buy_activation() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.SELL, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 200, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(5, "ABC", 500, LocalDateTime.now(), Side.BUY, 30, 50, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 400, true));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 170, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 170, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(4, "ABC", 400, LocalDateTime.now(), Side.BUY, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        verify(eventPublisher).publish((new OrderActivatedEvent(500)));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+    }
+
+    @Test
+    void stop_limits_buy_order_enters_inactivated_and_activate_and_match_later_causing_new_sell_activation() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.BUY, 30, 150, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 400, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(5, "ABC", 500, LocalDateTime.now(), Side.SELL, 30, 1000, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 200, true));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 500, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(4, "ABC", 400, LocalDateTime.now(), Side.SELL, 30, 150, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        verify(eventPublisher).publish((new OrderActivatedEvent(500)));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+    }
+
+    @Test
+    void stop_limits_sell_order_enters_inactivated_and_activate_and_match_later_causing_new_sell_activation() {
+        Broker broker1 = Broker.builder().brokerId(1).credit(100_000).build();
+        Broker broker2 = Broker.builder().brokerId(2).credit(100_000).build();
+        brokerRepository.addBroker(broker1);
+        brokerRepository.addBroker(broker2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.SELL, 30, 100, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 290, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(5, "ABC", 500, LocalDateTime.now(), Side.SELL, 30, 1000, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 200, true));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(2);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 30, 250, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(2, "ABC", 200, LocalDateTime.now(), Side.SELL, 30, 250, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(4, "ABC", 400, LocalDateTime.now(), Side.BUY, 30, 100, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
+        verify(eventPublisher).publish((new OrderActivatedEvent(500)));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+    }
+
+
+
 }
