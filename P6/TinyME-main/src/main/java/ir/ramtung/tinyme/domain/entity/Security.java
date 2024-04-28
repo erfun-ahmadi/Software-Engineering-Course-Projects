@@ -85,36 +85,21 @@ public class Security {
             throw new InvalidRequestException(Message.INVALID_PEAK_SIZE);
         if (!(order instanceof IcebergOrder) && updateOrderRq.getPeakSize() != 0)
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
+        if (order.isUpdateStopPriceInvalid(updateOrderRq))
+            throw new InvalidRequestException(Message.INVALID_UPDATE_STOP_PRICE);
         LinkedList<MatchResult> matchResults = new LinkedList<>();
         if (updateOrderRq.getStopPrice() != 0) {
-            if (order.getStopPrice() == 0) {
-                throw new InvalidRequestException(Message.INVALID_UPDATE_STOP_PRICE);
-            }
-            if (order.getStopPrice() != updateOrderRq.getStopPrice() && !order.inactive) {
-                throw new InvalidRequestException(Message.INVALID_UPDATE_STOP_PRICE);
-            }
-            if (((updateOrderRq.getStopPrice() != order.getStopPrice()) || (updateOrderRq.getPrice() != order.getPrice()) || (updateOrderRq.getQuantity() != order.getQuantity())) && (order.getSide() == Side.SELL)) {
+            if ((updateOrderRq.getStopPrice() != order.getStopPrice()) || (updateOrderRq.getPrice() != order.getPrice()) || (updateOrderRq.getQuantity() != order.getQuantity())) {
                 orderBook.removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
-                order.updateInactiveOrder(updateOrderRq);
-                if (order.shouldActivate()) {
-                    order.activate();
-                    matchResults.add(MatchResult.stopLimitOrderActivated(order));
-                    matcher.clearMatchResults();
-                    matchResults.addAll(matcher.execute(order));
-                    return matchResults;
-                } else {
-                    orderBook.enqueue(order);
-                    return new LinkedList<>();
-                }
-            } else if (((updateOrderRq.getStopPrice() != order.getStopPrice()) || (updateOrderRq.getPrice() != order.getPrice()) || (updateOrderRq.getQuantity() != order.getQuantity())) && (order.getSide() == Side.BUY)) {
-                orderBook.removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
-                order.getBroker().increaseCreditBy(order.getValue());
-                if (!order.getBroker().hasEnoughCredit(updateOrderRq.getQuantity() * updateOrderRq.getPrice())) {
-                    matchResults.add(MatchResult.notEnoughCredit());
-                    return matchResults;
+                if (order.getSide() == Side.BUY) {
+                    order.getBroker().increaseCreditBy(order.getValue());
+                    if (!order.getBroker().hasEnoughCredit(updateOrderRq.getValue())) {
+                        matchResults.add(MatchResult.notEnoughCredit());
+                        return matchResults;
+                    }
+                    order.getBroker().decreaseCreditBy(updateOrderRq.getValue());
                 }
                 order.updateInactiveOrder(updateOrderRq);
-                order.getBroker().decreaseCreditBy(order.getValue());
                 if (order.shouldActivate()) {
                     order.activate();
                     matchResults.add(MatchResult.stopLimitOrderActivated(order));

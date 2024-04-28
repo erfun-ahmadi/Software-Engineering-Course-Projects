@@ -97,4 +97,9 @@ public class EnterOrderRq {
     public boolean hasPeakSizeAndStopPrice() {
         return peakSize != 0 && stopPrice != 0;
     }
+
+    public long getValue() {
+        return (long) price * quantity;
+    }
+
 }

@@ -154,4 +154,8 @@ public class Order {
         this.quantity = enterOrderRq.getQuantity();
         this.stopPrice = enterOrderRq.getStopPrice();
     }
+
+    public boolean isUpdateStopPriceInvalid(EnterOrderRq updateOrderRq) {
+        return (stopPrice == 0 && updateOrderRq.getStopPrice() != 0) || (stopPrice != updateOrderRq.getStopPrice() && !inactive);
+    }
 }
