@@ -97,7 +97,7 @@ public class Matcher {
                 }
                 order.getBroker().decreaseCreditBy(order.getValue());
             }
-            order.getSecurity().getOrderBook().matcherEnqueue(result.remainder());
+            order.getSecurity().getOrderBook().enqueue(result.remainder());
         }
         if (!result.trades().isEmpty()) {
             for (Trade trade : result.trades()) {
@@ -135,9 +135,7 @@ public class Matcher {
             int lastPrice = lastResult.trades().getLast().getPrice();
             lastResult.remainder().getSecurity().setLastTradePrice(lastPrice);
             List<Order> activatedOrders = lastResult.remainder().getSecurity().getOrderBook().activateOrder();
-            var it = activatedOrders.listIterator();
-            while (it.hasNext()) {
-                Order order = it.next();
+            for (Order order : activatedOrders) {
                 MatchResult result = MatchResult.stopLimitOrderActivated(order);
                 matchResults.add(result);
             }

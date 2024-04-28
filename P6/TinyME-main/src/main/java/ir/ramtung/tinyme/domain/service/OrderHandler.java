@@ -73,11 +73,11 @@ public class OrderHandler {
                 eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
             if (!matchResult.trades().isEmpty()) {
                 eventPublisher.publish(new OrderExecutedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
+                matchResults.removeFirst();
             }
 
             var it = matchResults.listIterator();
             if (it.hasNext()) {
-                it.next();
                 while (it.hasNext()) {
                     matchResult = it.next();
                     if (!matchResult.trades().isEmpty()) {

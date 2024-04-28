@@ -450,7 +450,7 @@ public class OrderHandlerTest {
         assertThat(broker1.getCredit()).isEqualTo(100_000);
         assertThat(broker2.getCredit()).isEqualTo(100_000);
         assertThat(broker3.getCredit()).isEqualTo(54_000);
-        assertThat(originalOrder).isEqualTo(security.getOrderBook().findByOrderId(Side.BUY, 2, 0, false));
+        assertThat(originalOrder).isEqualTo(security.getOrderBook().findByOrderId(Side.BUY, 2, false));
     }
 
     @Test

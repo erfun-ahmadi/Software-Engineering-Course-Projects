@@ -35,45 +35,45 @@ class OrderBookTest {
 
     @Test
     void finds_the_first_order_by_id() {
-        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 1, 0, false))
+        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 1, false))
                 .isEqualTo(orders.get(0));
     }
 
     @Test
     void fails_to_find_the_first_order_by_id_in_the_wrong_queue() {
-        assertThat(security.getOrderBook().findByOrderId(Side.SELL, 1, 0, false)).isNull();
+        assertThat(security.getOrderBook().findByOrderId(Side.SELL, 1, false)).isNull();
     }
 
     @Test
     void finds_some_order_in_the_middle_by_id() {
-        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 3, 0, false))
+        assertThat(security.getOrderBook().findByOrderId(Side.BUY, 3, false))
                 .isEqualTo(orders.get(2));
     }
 
     @Test
     void finds_the_last_order_by_id() {
-        assertThat(security.getOrderBook().findByOrderId(Side.SELL, 10, 0, false))
+        assertThat(security.getOrderBook().findByOrderId(Side.SELL, 10, false))
                 .isEqualTo(orders.get(9));
     }
 
     @Test
     void removes_the_first_order_by_id() {
         OrderBook orderBook = security.getOrderBook();
-        orderBook.removeByOrderId(Side.BUY, 1, 0, false);
+        orderBook.removeByOrderId(Side.BUY, 1, false);
         assertThat(orderBook.getBuyQueue()).isEqualTo(orders.subList(1, 5));
     }
 
     @Test
     void fails_to_remove_the_first_order_by_id_in_the_wrong_queue() {
         OrderBook orderBook = security.getOrderBook();
-        orderBook.removeByOrderId(Side.SELL, 1, 0, false);
+        orderBook.removeByOrderId(Side.SELL, 1, false);
         assertThat(orderBook.getBuyQueue()).isEqualTo(orders.subList(0, 5));
     }
 
     @Test
     void removes_the_last_order_by_id() {
         OrderBook orderBook = security.getOrderBook();
-        orderBook.removeByOrderId(Side.SELL, 10, 0, false);
+        orderBook.removeByOrderId(Side.SELL, 10, false);
         assertThat(orderBook.getSellQueue()).isEqualTo(orders.subList(5, 9));
     }
 }

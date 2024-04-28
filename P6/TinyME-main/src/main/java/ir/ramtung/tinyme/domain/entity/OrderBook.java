@@ -1,7 +1,5 @@
 package ir.ramtung.tinyme.domain.entity;
 
-import ir.ramtung.tinyme.messaging.EventPublisher;
-import ir.ramtung.tinyme.messaging.event.OrderActivatedEvent;
 import lombok.Getter;
 
 import java.util.LinkedList;
@@ -25,51 +23,20 @@ public class OrderBook {
         activeQueue = new LinkedList<>();
     }
 
-    public void matcherEnqueue(Order order) {
-        List<Order> queue = (order.getSide() == Side.BUY ? buyQueue : sellQueue);
-        ListIterator<Order> it = queue.listIterator();
-        if (order.getStopPrice() == 0) {
-            while (it.hasNext()) {
-                if (order.queuesBefore(it.next())) {
-                    it.previous();
-                    break;
-                }
-            }
-        } else if (order.getStopPrice() != 0) {
-            while (it.hasNext()) {
-                if (order.queuesBeforeStopLimit(it.next())) {
-                    it.previous();
-                    break;
-                }
-            }
-        }
-        order.queue();
-        it.add(order);
-    }
-
     public void enqueue(Order order) {
-        List<Order> queue = getQueue(order.getSide(), order.getStopPrice(), order.isInactive());
+        List<Order> queue = getQueue(order.getSide(), order.isInactive());
         ListIterator<Order> it = queue.listIterator();
-        if (order.getStopPrice() == 0) {
-            while (it.hasNext()) {
-                if (order.queuesBefore(it.next())) {
-                    it.previous();
-                    break;
-                }
-            }
-        } else if (order.getStopPrice() != 0) {
-            while (it.hasNext()) {
-                if (order.queuesBeforeStopLimit(it.next())) {
-                    it.previous();
-                    break;
-                }
+        while (it.hasNext()) {
+            if (order.queuesBefore(it.next())) {
+                it.previous();
+                break;
             }
         }
         order.queue();
         it.add(order);
     }
 
-    private LinkedList<Order> getQueue(Side side, int stopPrice, boolean inactive) {
+    private LinkedList<Order> getQueue(Side side, boolean inactive) {
         if (side == Side.BUY && !inactive) {
             return buyQueue;
         } else if (side == Side.SELL && !inactive) {
@@ -103,8 +70,8 @@ public class OrderBook {
         }
     }
 
-    public Order findByOrderId(Side side, long orderId, int stopPrice, boolean inactive) {
-        var queue = getQueue(side, stopPrice, inactive);
+    public Order findByOrderId(Side side, long orderId, boolean inactive) {
+        var queue = getQueue(side, inactive);
         for (Order order : queue) {
             if (order.getOrderId() == orderId)
                 return order;
@@ -112,8 +79,8 @@ public class OrderBook {
         return null;
     }
 
-    public boolean removeByOrderId(Side side, long orderId, int stopPrice, boolean inactive) {
-        var queue = getQueue(side, stopPrice, inactive);
+    public boolean removeByOrderId(Side side, long orderId, boolean inactive) {
+        var queue = getQueue(side, inactive);
         var it = queue.listIterator();
         while (it.hasNext()) {
             if (it.next().getOrderId() == orderId) {
@@ -133,18 +100,18 @@ public class OrderBook {
     }
 
     public void putBack(Order order) {
-        LinkedList<Order> queue = getQueue(order.getSide(), order.getStopPrice(), order.isInactive());
+        LinkedList<Order> queue = getQueue(order.getSide(), order.isInactive());
         order.queue();
         queue.addFirst(order);
     }
 
     public void restoreSellOrder(Order sellOrder) {
-        removeByOrderId(Side.SELL, sellOrder.getOrderId(), sellOrder.getStopPrice(), sellOrder.isInactive());
+        removeByOrderId(Side.SELL, sellOrder.getOrderId(), sellOrder.isInactive());
         putBack(sellOrder);
     }
 
     public void restoreBuyOrder(Order buyOrder) {
-        removeByOrderId(Side.BUY, buyOrder.getOrderId(), buyOrder.getStopPrice(), buyOrder.isInactive());
+        removeByOrderId(Side.BUY, buyOrder.getOrderId(), buyOrder.isInactive());
         putBack(buyOrder);
     }
 
@@ -169,10 +136,10 @@ public class OrderBook {
         while (it.hasNext()) {
             Order order = it.next();
             if ((order.getStopPrice() != 0 && order.getSide() == Side.BUY && order.getStopPrice() <= order.getSecurity().getLastTradePrice())) {
-                removeByOrderId(order.getSide(), order.getOrderId(), order.getStopPrice(), order.isInactive());
-                order.activate();
+                removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
                 order.getBroker().increaseCreditBy(order.getValue());
                 enqueueInActiveQueue(order);
+                order.activate();
                 it = inactiveBuyQueue.listIterator();
                 activatedOrders.add(order);
             }
@@ -181,9 +148,9 @@ public class OrderBook {
         while (it.hasNext()) {
             Order order = it.next();
             if ((order.getStopPrice() != 0 && order.getSide() == Side.SELL && order.getStopPrice() >= order.getSecurity().getLastTradePrice())) {
-                removeByOrderId(order.getSide(), order.getOrderId(), order.getStopPrice(), order.isInactive());
-                order.activate();
+                removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
                 enqueueInActiveQueue(order);
+                order.activate();
                 it = inactiveSellQueue.listIterator();
                 activatedOrders.add(order);
             }
