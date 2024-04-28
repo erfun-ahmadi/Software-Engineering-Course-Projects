@@ -7,6 +7,7 @@ import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.TradeDTO;
 import ir.ramtung.tinyme.messaging.event.*;
+import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
@@ -453,5 +454,45 @@ class StopLimitOrderTest {
         orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(4, "ABC", 400, LocalDateTime.now(), Side.BUY, 30, 100, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0, 0, true));
         verify(eventPublisher).publish((new OrderActivatedEvent(500)));
         assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+    }
+
+    @Test
+    void delete_inactivated_stop_limit_buy_order() {
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.BUY, 30, 150, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 400, true));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(1);
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(3, security.getIsin(), Side.BUY, 300, 400, true));
+        verify(eventPublisher).publish(new OrderDeletedEvent(3, 300));
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+    }
+
+    @Test
+    void delete_inactivated_stop_limit_sell_order() {
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.SELL, 30, 150, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 40, true));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(1);
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(3, security.getIsin(), Side.SELL, 300, 40, true));
+        verify(eventPublisher).publish(new OrderDeletedEvent(3, 300));
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+    }
+
+    @Test
+    void delete_activated_stop_limit_buy_order() {
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.BUY, 30, 150, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 40, true));
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(1);
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(3, security.getIsin(), Side.BUY, 300, 40, false));
+        verify(eventPublisher).publish(new OrderDeletedEvent(3, 300));
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(0);
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+    }
+
+    @Test
+    void delete_activated_stop_limit_sell_order() {
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(3, "ABC", 300, LocalDateTime.now(), Side.SELL, 30, 150, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 0, 400, true));
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(1);
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(3, security.getIsin(), Side.SELL, 300, 400, false));
+        verify(eventPublisher).publish(new OrderDeletedEvent(3, 300));
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(0);
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
     }
 }
