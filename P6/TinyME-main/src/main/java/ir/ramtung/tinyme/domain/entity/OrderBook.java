@@ -135,7 +135,7 @@ public class OrderBook {
         var it = inactiveBuyQueue.listIterator();
         while (it.hasNext()) {
             Order order = it.next();
-            if ((order.getStopPrice() != 0 && order.getSide() == Side.BUY && order.getStopPrice() <= order.getSecurity().getLastTradePrice())) {
+            if (order.getSide()==Side.BUY && order.shouldActivate()) {
                 removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
                 order.getBroker().increaseCreditBy(order.getValue());
                 enqueueInActiveQueue(order);
@@ -147,7 +147,7 @@ public class OrderBook {
         it = inactiveSellQueue.listIterator();
         while (it.hasNext()) {
             Order order = it.next();
-            if ((order.getStopPrice() != 0 && order.getSide() == Side.SELL && order.getStopPrice() >= order.getSecurity().getLastTradePrice())) {
+            if (order.getSide() == Side.SELL && order.shouldActivate()) {
                 removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
                 enqueueInActiveQueue(order);
                 order.activate();

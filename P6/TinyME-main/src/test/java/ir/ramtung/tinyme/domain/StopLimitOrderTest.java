@@ -106,7 +106,7 @@ class StopLimitOrderTest {
         Order order = new Order(100, security, Side.BUY, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
         security.getOrderBook().enqueue(order);
         orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 10, 0, 1000, true));
-        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER))));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER))));
         assertThat(broker1.getCredit()).isEqualTo(100_000);
     }
 
@@ -116,7 +116,7 @@ class StopLimitOrderTest {
         security.getOrderBook().enqueue(order);
         EnterOrderRq enterOrderRq = EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.SELL, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 10, 0, 1000, true);
         orderHandler.handleEnterOrder(enterOrderRq);
-        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER))));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER))));
         assertThat(broker1.getCredit()).isEqualTo(100_000);
     }
 
@@ -125,7 +125,7 @@ class StopLimitOrderTest {
         Order order = new Order(100, security, Side.BUY, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
         security.getOrderBook().enqueue(order);
         orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.BUY, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 10, 1000, true));
-        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.CANNOT_UPDATE_MINIMUM_EXECUTION_QUANTITY))));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER))));
         assertThat(broker1.getCredit()).isEqualTo(100_000);
         assertThat(security.getOrderBook().findByOrderId(BUY, 100, true).getMinimumExecutionQuantity()).isEqualTo(0);
     }
@@ -135,7 +135,7 @@ class StopLimitOrderTest {
         Order order = new Order(100, security, Side.SELL, 30, 500, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 1000, true);
         security.getOrderBook().enqueue(order);
         orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(1, "ABC", 100, LocalDateTime.now(), Side.SELL, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(), 0, 10, 1000, true));
-        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.CANNOT_UPDATE_MINIMUM_EXECUTION_QUANTITY))));
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER))));
         assertThat(broker1.getCredit()).isEqualTo(100_000);
         assertThat(security.getOrderBook().findByOrderId(SELL, 100, true).getMinimumExecutionQuantity()).isEqualTo(0);
     }

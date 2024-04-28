@@ -76,21 +76,26 @@ public class OrderHandler {
                 matchResults.removeFirst();
             }
 
-            var it = matchResults.listIterator();
-            if (it.hasNext()) {
-                while (it.hasNext()) {
-                    matchResult = it.next();
-                    if (!matchResult.trades().isEmpty()) {
-                        eventPublisher.publish(new OrderExecutedEvent(1, matchResult.remainder().getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
-                    }
-                    if (matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED) {
-                        eventPublisher.publish(new OrderActivatedEvent(matchResult.remainder().getOrderId()));
-                    }
-                }
-            }
+            publishMatchResultsWithMoreThanOneEvent(matchResults);
 
         } catch (InvalidRequestException ex) {
             eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), ex.getReasons()));
+        }
+    }
+
+    private void publishMatchResultsWithMoreThanOneEvent(LinkedList<MatchResult> matchResults) {
+        MatchResult matchResult;
+        var it = matchResults.listIterator();
+        if (it.hasNext()) {
+            while (it.hasNext()) {
+                matchResult = it.next();
+                if (!matchResult.trades().isEmpty()) {
+                    eventPublisher.publish(new OrderExecutedEvent(1, matchResult.remainder().getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
+                }
+                if (matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED) {
+                    eventPublisher.publish(new OrderActivatedEvent(matchResult.remainder().getOrderId()));
+                }
+            }
         }
     }
 
@@ -115,6 +120,8 @@ public class OrderHandler {
             errors.add(Message.ORDER_QUANTITY_NOT_POSITIVE);
         if (enterOrderRq.getPrice() <= 0)
             errors.add(Message.ORDER_PRICE_NOT_POSITIVE);
+        if (enterOrderRq.hasMinimumExecutionQuantityAndStopPrice() || enterOrderRq.hasPeakSizeAndStopPrice())
+            errors.add(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER);
         Security security = securityRepository.findSecurityByIsin(enterOrderRq.getSecurityIsin());
         if (security == null)
             errors.add(Message.UNKNOWN_SECURITY_ISIN);

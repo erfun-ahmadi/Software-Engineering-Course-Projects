@@ -55,7 +55,7 @@ public class Order {
         this.shareholder = shareholder;
         this.status = status;
         this.stopPrice = stopPrice;
-        this.inactive = false;
+        this.inactive = stopPrice > 0;
     }
 
     public Order(long orderId, Security security, Side side, int quantity, int price, int minimumExecutionQuantity, Broker broker, Shareholder shareholder, LocalDateTime entryTime, int stopPrice) {
@@ -70,11 +70,16 @@ public class Order {
         this.shareholder = shareholder;
         this.status = OrderStatus.NEW;
         this.stopPrice = stopPrice;
-        this.inactive = false;
+        this.inactive = stopPrice > 0;
     }
 
     public Order(long orderId, Security security, Side side, int quantity, int price, int minimumExecutionQuantity, Broker broker, Shareholder shareholder, int stopPrice) {
         this(orderId, security, side, quantity, price, minimumExecutionQuantity, broker, shareholder, LocalDateTime.now(), stopPrice);
+    }
+
+    public boolean shouldActivate() {
+        return (stopPrice != 0 && side == Side.BUY && stopPrice <= security.getLastTradePrice()) ||
+                (stopPrice != 0 && side== Side.SELL && stopPrice >= security.getLastTradePrice());
     }
 
     public Order snapshot() {
