@@ -20,6 +20,10 @@ public final class MatchResult {
         return new MatchResult(MatchingOutcome.NOT_ENOUGH_POSITIONS, null, new LinkedList<>());
     }
 
+    public static MatchResult noAuctionOrderMatch() {
+        return new MatchResult(MatchingOutcome.NO_AUCTION_ORDERS_IN_OPOSIT_SIDE, null, new LinkedList<>());
+    }
+
     public static MatchResult notEnoughQuantitiesTraded() {
         return new MatchResult(MatchingOutcome.NOT_ENOUGH_QUANTITIES_TRADED, null, new LinkedList<>());
     }
@@ -30,6 +34,10 @@ public final class MatchResult {
 
     public static MatchResult stopLimitOrderActivated(Order activated) {
         return new MatchResult(MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED, activated, new LinkedList<>());
+    }
+
+    public static MatchResult openingPriceBeenSet(int openingPrice , int tradableQuantity) {
+        return new MatchResult(MatchingOutcome.OPENING_PRICE_BEEN_SET, null , new LinkedList<>());
     }
 
     private MatchResult(MatchingOutcome outcome, Order remainder, LinkedList<Trade> trades) {

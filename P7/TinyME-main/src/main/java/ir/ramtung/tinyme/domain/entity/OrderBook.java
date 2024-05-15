@@ -14,7 +14,6 @@ public class OrderBook {
     private final LinkedList<Order> inactiveSellQueue;
     public final LinkedList<Order> activeQueue;
 
-
     public OrderBook() {
         buyQueue = new LinkedList<>();
         sellQueue = new LinkedList<>();
@@ -156,5 +155,25 @@ public class OrderBook {
             }
         }
         return activatedOrders;
+    }
+
+    public int findMaxSellQueuePrice(){
+        int maxPrice = Integer.MIN_VALUE;
+        for (Order order : sellQueue) {
+            if (order.getPrice() > maxPrice) {
+                maxPrice = order.getPrice(); // Update maxPrice if current order's price is greater
+            }
+        }
+        return maxPrice;
+    }
+
+    public int findMinBuyQueuePrice(){
+        int minPrice = Integer.MAX_VALUE;
+        for (Order order : buyQueue) {
+            if (order.getPrice() < minPrice) {
+                minPrice = order.getPrice(); // Update maxPrice if current order's price is greater
+            }
+        }
+        return minPrice;
     }
 }
