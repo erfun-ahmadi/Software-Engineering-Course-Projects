@@ -18,12 +18,14 @@ public class AuctionMatcher {
             if (orderBook.hasOrderOfType(curOrder.getSide().opposite()) && curOrder.getQuantity() > 0) {
                 while (orderBook.hasOrderOfType(curOrder.getSide().opposite()) && curOrder.getQuantity() > 0) {
                     Order matchingOrder = orderBook.matchWithFirst(curOrder);
-                    if ((matchingOrder == null) || (matchingOrder.getSide() == Side.BUY && matchingOrder.getPrice() < openPrice) ||
-                            (matchingOrder.getSide() == Side.SELL && matchingOrder.getPrice() > openPrice)) {
+                    if (matchingOrder == null) {
                         break;
                     }
-                    applyTrade(curOrder, matchingOrder, trades);
-                    compareCurOrderAndMatchingOrderQuantity(curOrder, matchingOrder, orderBook);
+                    if ((matchingOrder.getSide() == Side.BUY && matchingOrder.getPrice() >= openPrice) ||
+                    (matchingOrder.getSide() == Side.SELL && matchingOrder.getPrice() <= openPrice)) {
+                        applyTrade(curOrder, matchingOrder, trades);
+                        compareCurOrderAndMatchingOrderQuantity(curOrder, matchingOrder, orderBook);
+                    }
                 }
             }
             else {

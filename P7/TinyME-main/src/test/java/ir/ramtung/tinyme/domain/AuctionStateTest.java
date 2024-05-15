@@ -82,5 +82,5 @@ class AuctionStateTest {
         );
         orders.forEach(order -> orderBook.enqueue(order));
     }
-    
+
 }
