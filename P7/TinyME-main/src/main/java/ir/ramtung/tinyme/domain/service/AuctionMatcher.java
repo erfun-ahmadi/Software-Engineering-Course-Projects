@@ -3,14 +3,12 @@ package ir.ramtung.tinyme.domain.service;
 import ir.ramtung.tinyme.domain.entity.*;
 
 import java.util.LinkedList;
-import java.util.ListIterator;
 
-public class AuctionMatcher extends Matcher {
+public class AuctionMatcher {
     private LinkedList<MatchResult> matchResults = new LinkedList<>();
     private int openPrice;
     private int tradableQuantity;
 
-    @Override
     public MatchResult match(Order curOrder) {
         OrderBook orderBook = curOrder.getSecurity().getOrderBook();
         LinkedList<Trade> trades = new LinkedList<>();
@@ -25,7 +23,7 @@ public class AuctionMatcher extends Matcher {
                         break;
                     }
                     applyTrade(curOrder, matchingOrder, trades);
-                    compareCurOrderandMatchingOrderQuantity(curOrder, matchingOrder, orderBook);
+                    compareCurOrderAndMatchingOrderQuantity(curOrder, matchingOrder, orderBook);
                 }
             }
             else {
@@ -60,7 +58,7 @@ public class AuctionMatcher extends Matcher {
         trades.add(trade);
     }
 
-    private void compareCurOrderandMatchingOrderQuantity(Order curOrder, Order matchingOrder, OrderBook orderBook) {
+    private void compareCurOrderAndMatchingOrderQuantity(Order curOrder, Order matchingOrder, OrderBook orderBook) {
         if (curOrder.getQuantity() >= matchingOrder.getQuantity()) {
             curOrder.decreaseQuantity(matchingOrder.getQuantity());
             orderBook.removeFirst(matchingOrder.getSide());
@@ -78,7 +76,7 @@ public class AuctionMatcher extends Matcher {
 
     public LinkedList<MatchResult> execute(Order order) {
         openPrice = findOpenPrice(order);
-        LinkedList<Order> chosenSide = chooseSide(curOrder.getSecurity().getOrderBook());
+        LinkedList<Order> chosenSide = chooseSide(order.getSecurity().getOrderBook());
         for (Order curOrder : chosenSide) {
             MatchResult result = match(curOrder);
             if (!result.trades().isEmpty()) {
@@ -94,7 +92,7 @@ public class AuctionMatcher extends Matcher {
 
     public MatchResult updateOpenPriceWithNewOrder(Order order) {
         order.getSecurity().getOrderBook().enqueue(order);
-        openPrice = findOpenPrice(order.getSecurity().getOrderBook());
+        openPrice = findOpenPrice(order);
         return MatchResult.openingPriceBeenSet(openPrice , tradableQuantity);
     }
 
