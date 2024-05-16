@@ -98,6 +98,14 @@ public class OrderBook {
             return null;
     }
 
+    public Order auctionMatchWithFirst(Order newOrder, int openPrice) {
+        var queue = (newOrder.getSide() == Side.BUY ? sellQueue : buyQueue);
+        if (newOrder.matchesAuction(queue.getFirst(), openPrice))
+            return queue.getFirst();
+        else
+            return null;
+    }
+
     public void putBack(Order order) {
         LinkedList<Order> queue = getQueue(order.getSide(), order.isInactive());
         order.queue();
