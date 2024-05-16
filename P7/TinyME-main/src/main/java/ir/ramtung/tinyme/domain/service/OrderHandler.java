@@ -39,14 +39,10 @@ public class OrderHandler {
 
     public void handleChangeMatchingState(ChangeMatchingStateRq changeMatchingStateRq) {
         Security security = securityRepository.findSecurityByIsin(changeMatchingStateRq.getSecurityIsin());
-        //maybe can make this with one matchResult
-        LinkedList<MatchResult> matchResults = security.changeState(changeMatchingStateRq, auctionMatcher);
+        LinkedList<Trade> trades = security.changeState(changeMatchingStateRq, auctionMatcher);
         eventPublisher.publish(new SecurityStateChangedEvent(security.getIsin(), security.getMatchingState()));
-        for (MatchResult matchResult : matchResults) {
-            for (Trade trade : matchResult.trades()) {
-                eventPublisher.publish(new TradeEvent(security.getIsin(), trade.getPrice(), trade.getQuantity(), trade.getBuy().getOrderId(), trade.getSell().getOrderId()));
-            }
-        }
+        for (Trade trade : trades)
+            eventPublisher.publish(new TradeEvent(security.getIsin(), trade.getPrice(), trade.getQuantity(), trade.getBuy().getOrderId(), trade.getSell().getOrderId()));
     }
 
     public void handleEnterOrder(EnterOrderRq enterOrderRq) {

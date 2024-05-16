@@ -159,11 +159,10 @@ public class Order {
         return (stopPrice == 0 && updateOrderRq.getStopPrice() != 0) || (stopPrice != updateOrderRq.getStopPrice() && !inactive);
     }
 
-    //better name maybe
-    public boolean isPriceGood(int openPrice){
+    public boolean isProposedPriceGood(int proposedPrice){
         if (side == Side.BUY)
-            return price >= openPrice;
+            return this.price >= proposedPrice;
         else
-            return price <= openPrice;
+            return this.price <= proposedPrice;
     }
 }

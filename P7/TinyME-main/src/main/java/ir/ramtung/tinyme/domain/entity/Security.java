@@ -31,44 +31,35 @@ public class Security {
     @Builder.Default
     private MatchingState matchingState = MatchingState.CONTINUOUS;
 
-    public LinkedList<MatchResult> changeState(ChangeMatchingStateRq changeMatchingStateRq, AuctionMatcher auctionMatcher) {
-        LinkedList<MatchResult> matchResults = new LinkedList<>();
+    public LinkedList<Trade> changeState(ChangeMatchingStateRq changeMatchingStateRq, AuctionMatcher auctionMatcher) {
+        LinkedList<Trade> trades = new LinkedList<>();
         if (matchingState == MatchingState.AUCTION)
-            matchResults = auctionMatcher.execute(this);
+            trades = auctionMatcher.execute(this);
         matchingState = changeMatchingStateRq.getTargetState();
-        return matchResults;
+        return trades;
     }
 
     public LinkedList<MatchResult> newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, ContinuousMatcher continuousMatcher, AuctionMatcher auctionMatcher) {
         if (enterOrderRq.getSide() == Side.SELL &&
                 !shareholder.hasEnoughPositionsOn(this,
-                        orderBook.totalSellQuantityByShareholder(shareholder) + enterOrderRq.getQuantity())) {
+                        orderBook.totalSellQuantityByShareholder(shareholder) + enterOrderRq.getQuantity()))
             return new LinkedList<>(List.of(MatchResult.notEnoughPositions()));
-        }
         if (matchingState == MatchingState.CONTINUOUS)
             return newContinuousOrder(enterOrderRq, broker, shareholder, continuousMatcher);
         else
-            return newAuctionOrder(enterOrderRq, broker, shareholder, auctionMatcher);
-
+            return new LinkedList<>(List.of(newAuctionOrder(enterOrderRq, broker, shareholder, auctionMatcher)));
     }
 
-    //maybe can change this to return one MatchResult
-    private LinkedList<MatchResult> newAuctionOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, AuctionMatcher auctionMatcher) {
-        LinkedList<MatchResult> matchResults = new LinkedList<>();
-        if (enterOrderRq.getStopPrice() != 0 || enterOrderRq.getMinimumExecutionQuantity() != 0) {
-            matchResults.add(MatchResult.invalidOrderInAuctionState());
-            return matchResults;
-        }
-        if (enterOrderRq.getSide() == Side.BUY && !broker.hasEnoughCredit(enterOrderRq.getValue())) {
-            matchResults.add(MatchResult.notEnoughCredit());
-            return matchResults;
-        }
+    private MatchResult newAuctionOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, AuctionMatcher auctionMatcher) {
+        if (enterOrderRq.getStopPrice() != 0 || enterOrderRq.getMinimumExecutionQuantity() != 0)
+            return MatchResult.invalidOrderInAuctionState();
+        if (enterOrderRq.getSide() == Side.BUY && !broker.hasEnoughCredit(enterOrderRq.getValue()))
+            return MatchResult.notEnoughCredit();
         Order order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
                 enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime(), OrderStatus.NEW, enterOrderRq.getStopPrice());
         if (order.getSide() == Side.BUY)
             order.getBroker().decreaseCreditBy(order.getValue());
-        matchResults.add(auctionMatcher.updateOpenPriceWithNewOrder(order));
-        return matchResults;
+        return auctionMatcher.updateOpeningPriceWithNewOrder(order);
     }
 
     private LinkedList<MatchResult> newContinuousOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, ContinuousMatcher continuousMatcher) {

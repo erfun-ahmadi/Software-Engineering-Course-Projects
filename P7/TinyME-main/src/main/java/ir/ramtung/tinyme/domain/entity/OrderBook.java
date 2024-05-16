@@ -100,7 +100,7 @@ public class OrderBook {
 
     public Order auctionMatchWithFirst(Order newOrder, int openPrice) {
         var queue = (newOrder.getSide() == Side.BUY ? sellQueue : buyQueue);
-        if (queue.getFirst().isPriceGood(openPrice))
+        if (queue.getFirst().isProposedPriceGood(openPrice))
             return queue.getFirst();
         else
             return null;
@@ -142,7 +142,7 @@ public class OrderBook {
         var it = inactiveBuyQueue.listIterator();
         while (it.hasNext()) {
             Order order = it.next();
-            if (order.getSide()==Side.BUY && order.shouldActivate()) {
+            if (order.getSide() == Side.BUY && order.shouldActivate()) {
                 removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
                 order.getBroker().increaseCreditBy(order.getValue());
                 enqueueInActiveQueue(order);
@@ -165,23 +165,11 @@ public class OrderBook {
         return activatedOrders;
     }
 
-    public int findMaxSellQueuePrice(){
-        int maxPrice = Integer.MIN_VALUE;
-        for (Order order : sellQueue) {
-            if (order.getPrice() > maxPrice) {
-                maxPrice = order.getPrice(); // Update maxPrice if current order's price is greater
-            }
-        }
-        return maxPrice;
+    public int findMaxSellQueuePrice() {
+        return sellQueue.stream().mapToInt(Order::getPrice).min().orElse(Integer.MIN_VALUE);
     }
 
-    public int findMinBuyQueuePrice(){
-        int minPrice = Integer.MAX_VALUE;
-        for (Order order : buyQueue) {
-            if (order.getPrice() < minPrice) {
-                minPrice = order.getPrice(); // Update maxPrice if current order's price is greater
-            }
-        }
-        return minPrice;
+    public int findMinBuyQueuePrice() {
+        return sellQueue.stream().mapToInt(Order::getPrice).max().orElse(Integer.MAX_VALUE);
     }
 }
