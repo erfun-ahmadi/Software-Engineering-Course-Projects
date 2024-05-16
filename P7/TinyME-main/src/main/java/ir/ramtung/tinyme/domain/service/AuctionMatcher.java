@@ -43,7 +43,6 @@ public class AuctionMatcher {
     private Trade applyTrade(Order order, Order matchingOrder) {
         Trade trade = new Trade(order.getSecurity(), openingPrice, Math.min(order.getQuantity(), matchingOrder.getQuantity()),
                 order, matchingOrder);
-        trade.decreaseBuyersCredit();
         trade.increaseSellersCredit();
         trade.getBuy().getShareholder().incPosition(trade.getSecurity(), trade.getQuantity());
         trade.getSell().getShareholder().decPosition(trade.getSecurity(), trade.getQuantity());
