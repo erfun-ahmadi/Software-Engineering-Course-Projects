@@ -69,16 +69,16 @@ class AuctionStateTest {
 
         orderBook = security.getOrderBook();
         orders = Arrays.asList(
-                new Order(1, security, BUY, 304, 15700, 0, broker1, shareholder, 0),
-                new Order(2, security, BUY, 43, 15500, 0, broker1, shareholder, 0),
-                new Order(3, security, BUY, 445, 15450, 0, broker2, shareholder, 0),
-                new Order(4, security, BUY, 526, 15450, 0, broker2, shareholder, 0),
-                new Order(5, security, BUY, 1000, 15400, 0, broker2, shareholder, 0),
-                new Order(6, security, Side.SELL, 350, 15800, 0, broker2, shareholder, 0),
-                new Order(7, security, Side.SELL, 285, 15810, 0, broker2, shareholder, 0),
-                new Order(8, security, Side.SELL, 800, 15810, 0, broker1, shareholder, 0),
-                new Order(9, security, Side.SELL, 340, 15820, 0, broker1, shareholder, 0),
-                new Order(10, security, Side.SELL, 65, 15820, 0, broker1, shareholder, 0)
+                new Order(1, security, SELL, 304, 15700, 0, broker1, shareholder, 0),
+                new Order(2, security, SELL, 43, 15500, 0, broker1, shareholder, 0),
+                new Order(3, security, SELL, 445, 15450, 0, broker2, shareholder, 0),
+                new Order(4, security, SELL, 526, 15450, 0, broker2, shareholder, 0),
+                new Order(5, security, SELL, 1000, 15400, 0, broker2, shareholder, 0),
+                new Order(6, security, Side.BUY, 350, 15800, 0, broker2, shareholder, 0),
+                new Order(7, security, Side.BUY, 285, 15810, 0, broker2, shareholder, 0),
+                new Order(8, security, Side.BUY, 800, 15810, 0, broker1, shareholder, 0),
+                new Order(9, security, Side.BUY, 340, 15820, 0, broker1, shareholder, 0),
+                new Order(10, security, Side.BUY, 65, 15820, 0, broker1, shareholder, 0)
         );
         orders.forEach(order -> orderBook.enqueue(order));
     }

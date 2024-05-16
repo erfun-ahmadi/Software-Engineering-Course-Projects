@@ -124,8 +124,8 @@ public class AuctionMatcher {
     private int findOverallQuantityTraded(int selectedOpenPrice, OrderBook orderBook){
         LinkedList<Order> selectedBuyQueue = findSelectedBuyQueue(selectedOpenPrice , orderBook);
         LinkedList<Order> selectedSellQueue = findSelectedSellQueue(selectedOpenPrice , orderBook);
-        int sumQuantityinSellQueue = findSumSellQantitiesInOrderList(selectedSellQueue, openPrice);
-        int sumQuantityinBuyQueue = findSumBuyQantitiesInOrderList(selectedBuyQueue, openPrice);
+        int sumQuantityinSellQueue = findSumQantitiesInOrderList(selectedSellQueue);
+        int sumQuantityinBuyQueue = findSumQantitiesInOrderList(selectedBuyQueue);
         if (sumQuantityinSellQueue > sumQuantityinBuyQueue) {
             return sumQuantityinBuyQueue;
         }
@@ -172,6 +172,14 @@ public class AuctionMatcher {
             }
         }
         return sumSellQuantity;
+    }
+
+    private int findSumQantitiesInOrderList(LinkedList<Order> orders){
+        int sumQuantity = 0;
+        for (Order order : orders) {
+            sumQuantity += order.getQuantity();
+        }
+        return sumQuantity;
     }
 
     private int findClosestToLastTradePrice(LinkedList<Integer> openPricesWithHighestQuantityTraded , Order order) {

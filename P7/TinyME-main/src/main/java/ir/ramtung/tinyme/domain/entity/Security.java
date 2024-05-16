@@ -12,6 +12,7 @@ import lombok.Setter;
 import java.util.LinkedList;
 import java.util.List;
 
+@Setter
 @Getter
 @Builder
 public class Security {
