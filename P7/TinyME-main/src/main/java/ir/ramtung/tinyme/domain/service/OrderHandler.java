@@ -6,6 +6,7 @@ import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.TradeDTO;
 import ir.ramtung.tinyme.messaging.event.*;
+import ir.ramtung.tinyme.messaging.request.ChangeMatchingStateRq;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.messaging.request.OrderEntryType;
@@ -25,13 +26,23 @@ public class OrderHandler {
     ShareholderRepository shareholderRepository;
     EventPublisher eventPublisher;
     Matcher matcher;
+    AuctionMatcher auctionMatcher;
 
-    public OrderHandler(SecurityRepository securityRepository, BrokerRepository brokerRepository, ShareholderRepository shareholderRepository, EventPublisher eventPublisher, Matcher matcher) {
+    public OrderHandler(SecurityRepository securityRepository, BrokerRepository brokerRepository, ShareholderRepository shareholderRepository, EventPublisher eventPublisher, Matcher matcher, AuctionMatcher auctionMatcher) {
         this.securityRepository = securityRepository;
         this.brokerRepository = brokerRepository;
         this.shareholderRepository = shareholderRepository;
         this.eventPublisher = eventPublisher;
         this.matcher = matcher;
+        this.auctionMatcher = auctionMatcher;
+    }
+
+    public void handleChangeMatchingState(ChangeMatchingStateRq changeMatchingStateRq) {
+        Security security = securityRepository.findSecurityByIsin(changeMatchingStateRq.getSecurityIsin());
+        //maybe can make this with one matchResult
+        LinkedList<MatchResult> matchResults = security.changeState(changeMatchingStateRq);
+        eventPublisher.publish(new SecurityStateChangedEvent(security.getIsin(), security.getMatchingState()));
+        //publish TradeEvents
     }
 
     public void handleEnterOrder(EnterOrderRq enterOrderRq) {
@@ -44,7 +55,7 @@ public class OrderHandler {
 
             LinkedList<MatchResult> matchResults;
             if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER)
-                matchResults = security.newOrder(enterOrderRq, broker, shareholder, matcher);
+                matchResults = security.newOrder(enterOrderRq, broker, shareholder, matcher, auctionMatcher);
             else
                 matchResults = security.updateOrder(enterOrderRq, matcher);
 
@@ -65,6 +76,10 @@ public class OrderHandler {
             }
             if (matchResult.outcome() == MatchingOutcome.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER) {
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER)));
+                return;
+            }
+            if (matchResult.outcome() == MatchingOutcome.INVALID_ORDER_IN_AUCTION_STATE) {
+                eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.INVALID_ORDER_IN_AUCTION_STATE)));
                 return;
             }
             if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER || matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACCEPTED)
@@ -89,12 +104,12 @@ public class OrderHandler {
         if (it.hasNext()) {
             while (it.hasNext()) {
                 matchResult = it.next();
-                if (!matchResult.trades().isEmpty()) {
+                if (!matchResult.trades().isEmpty())
                     eventPublisher.publish(new OrderExecutedEvent(1, matchResult.remainder().getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
-                }
-                if (matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED) {
+                if (matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED)
                     eventPublisher.publish(new OrderActivatedEvent(matchResult.remainder().getOrderId()));
-                }
+                if(matchResult.outcome()==MatchingOutcome.OPENING_PRICE_BEEN_SET)
+                    eventPublisher.publish(new OpeningPriceEvent(matchResult.securityIsin(), matchResult.openingPrice(), matchResult.tradableQuantity()));
             }
         }
     }

@@ -1,10 +1,13 @@
 package ir.ramtung.tinyme.domain.entity;
 
+import ir.ramtung.tinyme.domain.service.AuctionMatcher;
 import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
+import ir.ramtung.tinyme.messaging.request.ChangeMatchingStateRq;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
 import ir.ramtung.tinyme.domain.service.Matcher;
 import ir.ramtung.tinyme.messaging.Message;
+import ir.ramtung.tinyme.messaging.request.MatchingState;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,15 +28,51 @@ public class Security {
     private OrderBook orderBook = new OrderBook();
     @Setter
     private int lastTradePrice;
+    @Builder.Default
+    private MatchingState matchingState = MatchingState.CONTINUOUS;
 
-    public LinkedList<MatchResult> newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, Matcher matcher) {
-        LinkedList<MatchResult> matchResults = new LinkedList<>();
+    public LinkedList<MatchResult> changeState(ChangeMatchingStateRq changeMatchingStateRq) {
+        if (matchingState==MatchingState.AUCTION){
+            //get results from matcher
+        }
+        matchingState=changeMatchingStateRq.getTargetState();
+        return null;
+    }
+
+    public LinkedList<MatchResult> newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, Matcher matcher, AuctionMatcher auctionMatcher) {
         if (enterOrderRq.getSide() == Side.SELL &&
                 !shareholder.hasEnoughPositionsOn(this,
                         orderBook.totalSellQuantityByShareholder(shareholder) + enterOrderRq.getQuantity())) {
-            matchResults.add(MatchResult.notEnoughPositions());
+            return new LinkedList<>(List.of(MatchResult.notEnoughPositions()));
+        }
+        if (matchingState == MatchingState.CONTINUOUS)
+            return newContinuousOrder(enterOrderRq, broker, shareholder, matcher);
+        else
+            return newAuctionOrder(enterOrderRq, broker, shareholder, auctionMatcher);
+
+    }
+
+    //maybe can change this to return one MatchResult
+    private LinkedList<MatchResult> newAuctionOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, AuctionMatcher auctionMatcher) {
+        LinkedList<MatchResult> matchResults = new LinkedList<>();
+        if (enterOrderRq.getStopPrice() != 0 || enterOrderRq.getMinimumExecutionQuantity() != 0) {
+            matchResults.add(MatchResult.invalidOrderInAuctionState());
             return matchResults;
         }
+        if (enterOrderRq.getSide() == Side.BUY && !broker.hasEnoughCredit(enterOrderRq.getValue())) {
+            matchResults.add(MatchResult.notEnoughCredit());
+            return matchResults;
+        }
+        Order order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),
+                enterOrderRq.getQuantity(), enterOrderRq.getPrice(), enterOrderRq.getMinimumExecutionQuantity(), broker, shareholder, enterOrderRq.getEntryTime(), OrderStatus.NEW, enterOrderRq.getStopPrice());
+        if (order.getSide() == Side.BUY)
+            order.getBroker().decreaseCreditBy(order.getValue());
+        matchResults.add(auctionMatcher.updateOpenPriceWithNewOrder(order));
+        return matchResults;
+    }
+
+    private LinkedList<MatchResult> newContinuousOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, Matcher matcher) {
+        LinkedList<MatchResult> matchResults = new LinkedList<>();
         Order order = null;
         if (enterOrderRq.getPeakSize() == 0) {
             order = new Order(enterOrderRq.getOrderId(), this, enterOrderRq.getSide(),

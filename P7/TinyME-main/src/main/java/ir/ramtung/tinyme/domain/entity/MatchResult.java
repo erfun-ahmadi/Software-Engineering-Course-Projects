@@ -8,6 +8,9 @@ public final class MatchResult {
     private final MatchingOutcome outcome;
     private final Order remainder;
     private final LinkedList<Trade> trades;
+    private final String securityIsin;
+    private final int openingPrice;
+    private final int tradableQuantity;
 
     public static MatchResult executed(Order remainder, List<Trade> trades) {
         return new MatchResult(MatchingOutcome.EXECUTED, remainder, new LinkedList<>(trades));
@@ -16,16 +19,21 @@ public final class MatchResult {
     public static MatchResult notEnoughCredit() {
         return new MatchResult(MatchingOutcome.NOT_ENOUGH_CREDIT, null, new LinkedList<>());
     }
+
     public static MatchResult notEnoughPositions() {
         return new MatchResult(MatchingOutcome.NOT_ENOUGH_POSITIONS, null, new LinkedList<>());
     }
 
     public static MatchResult noAuctionOrderMatch() {
-        return new MatchResult(MatchingOutcome.NO_AUCTION_ORDERS_IN_OPOSIT_SIDE, null, new LinkedList<>());
+        return new MatchResult(MatchingOutcome.NO_AUCTION_ORDERS_IN_OPPOSITE_SIDE, null, new LinkedList<>());
     }
 
     public static MatchResult notEnoughQuantitiesTraded() {
         return new MatchResult(MatchingOutcome.NOT_ENOUGH_QUANTITIES_TRADED, null, new LinkedList<>());
+    }
+
+    public static MatchResult invalidOrderInAuctionState() {
+        return new MatchResult(MatchingOutcome.INVALID_ORDER_IN_AUCTION_STATE, null, new LinkedList<>());
     }
 
     public static MatchResult stopLimitOrderAccepted() {
@@ -36,19 +44,30 @@ public final class MatchResult {
         return new MatchResult(MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED, activated, new LinkedList<>());
     }
 
-    public static MatchResult openingPriceBeenSet(int openingPrice , int tradableQuantity) {
-        return new MatchResult(MatchingOutcome.OPENING_PRICE_BEEN_SET, null , new LinkedList<>());
+    public static MatchResult openingPriceHasBeenSet(String securityIsin, int openingPrice, int tradableQuantity) {
+        return new MatchResult(MatchingOutcome.OPENING_PRICE_BEEN_SET, null, new LinkedList<>(), securityIsin, openingPrice, tradableQuantity);
     }
 
     private MatchResult(MatchingOutcome outcome, Order remainder, LinkedList<Trade> trades) {
         this.outcome = outcome;
         this.remainder = remainder;
         this.trades = trades;
+        this.securityIsin = "";
+        this.openingPrice = 0;
+        this.tradableQuantity = 0;
     }
 
-    public MatchingOutcome outcome() {
-        return outcome;
+    private MatchResult(MatchingOutcome outcome, Order remainder, LinkedList<Trade> trades, String securityIsin, int openingPrice, int tradableQuantity) {
+        this.outcome = outcome;
+        this.remainder = remainder;
+        this.trades = trades;
+        this.securityIsin = securityIsin;
+        this.openingPrice = openingPrice;
+        this.tradableQuantity = tradableQuantity;
     }
+
+    public MatchingOutcome outcome() { return outcome; }
+
     public Order remainder() {
         return remainder;
     }
@@ -56,6 +75,12 @@ public final class MatchResult {
     public LinkedList<Trade> trades() {
         return trades;
     }
+
+    public String securityIsin() { return securityIsin; }
+
+    public int openingPrice() { return openingPrice; }
+
+    public int tradableQuantity() { return tradableQuantity; }
 
     @Override
     public boolean equals(Object obj) {

@@ -2,7 +2,7 @@ package ir.ramtung.tinyme.messaging.event;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
-import ir.ramtung.tinyme.domain.entity.Side;
+import ir.ramtung.tinyme.messaging.request.MatchingState;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -14,17 +14,21 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(callSuper = false)
 @AllArgsConstructor
 @NoArgsConstructor
-public class OpeningPriceEvent extends Event {
+public class TradeEvent extends Event{
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     private LocalDateTime time;
     private String securityIsin;
-    private int openingPrice;
-    private int tradableQuantity;
+    private int price;
+    private int quantity;
+    private long buyId;
+    private long sellId;
 
-    public OpeningPriceEvent(String securityIsin, int openingPrice, int tradableQuantity) {
+    public TradeEvent(String securityIsin, int price, int quantity, int buyId, int sellId) {
         this.time = LocalDateTime.now();
         this.securityIsin = securityIsin;
-        this.openingPrice = openingPrice;
-        this.tradableQuantity = tradableQuantity;
+        this.price = price;
+        this.quantity = quantity;
+        this.buyId = buyId;
+        this.sellId = sellId;
     }
 }

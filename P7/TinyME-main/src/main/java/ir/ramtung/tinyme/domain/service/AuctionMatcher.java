@@ -2,10 +2,12 @@ package ir.ramtung.tinyme.domain.service;
 
 import ir.ramtung.tinyme.domain.entity.*;
 import lombok.Getter;
+import org.springframework.stereotype.Service;
 
 import java.util.LinkedList;
 
 @Getter
+@Service
 public class AuctionMatcher {
     private LinkedList<MatchResult> matchResults = new LinkedList<>();
     private int openPrice;
@@ -97,12 +99,17 @@ public class AuctionMatcher {
     public MatchResult updateOpenPriceWithNewOrder(Order order) {
         order.getSecurity().getOrderBook().enqueue(order);
         openPrice = findOpenPrice(order);
-        return MatchResult.openingPriceBeenSet(openPrice , tradableQuantity);
+        return MatchResult.openingPriceHasBeenSet(order.getSecurity().getIsin(), openPrice , tradableQuantity);
     }
 
     private int findOpenPrice(Order order){
         int maxLimit = order.getSecurity().getOrderBook().findMaxSellQueuePrice();
         int minLimit = order.getSecurity().getOrderBook().findMinBuyQueuePrice();
+        if (maxLimit < minLimit) {
+            int temp = maxLimit;
+            maxLimit = minLimit;
+            minLimit = temp;
+        }
         return findOptimalOpenPrice(minLimit , maxLimit , order);
     }
 
@@ -126,6 +133,9 @@ public class AuctionMatcher {
     private int findOverallQuantityTraded(int selectedOpenPrice, OrderBook orderBook){
         LinkedList<Order> selectedBuyQueue = findSelectedBuyQueue(selectedOpenPrice , orderBook);
         LinkedList<Order> selectedSellQueue = findSelectedSellQueue(selectedOpenPrice , orderBook);
+        if (selectedBuyQueue.isEmpty() || selectedSellQueue.isEmpty()) {
+            return Integer.MIN_VALUE;
+        }
         int sumQuantityinSellQueue = findSumQantitiesInOrderList(selectedSellQueue);
         int sumQuantityinBuyQueue = findSumQantitiesInOrderList(selectedBuyQueue);
         if (sumQuantityinSellQueue > sumQuantityinBuyQueue) {
@@ -160,7 +170,7 @@ public class AuctionMatcher {
         int sumBuyQuantity = 0;
         for (Order order : orders) {
             if (order.getPrice() >= openPrice) {
-                sumBuyQuantity += order.getQuantity();
+                sumBuyQuantity += order.getTotalQuantity();
             }
         }
         return sumBuyQuantity;
@@ -170,7 +180,7 @@ public class AuctionMatcher {
         int sumSellQuantity = 0;
         for (Order order : orders) {
             if (order.getPrice() <= openPrice) {
-                sumSellQuantity += order.getQuantity();
+                sumSellQuantity += order.getTotalQuantity();
             }
         }
         return sumSellQuantity;
@@ -179,7 +189,7 @@ public class AuctionMatcher {
     private int findSumQantitiesInOrderList(LinkedList<Order> orders){
         int sumQuantity = 0;
         for (Order order : orders) {
-            sumQuantity += order.getQuantity();
+            sumQuantity += order.getTotalQuantity();
         }
         return sumQuantity;
     }
