@@ -80,9 +80,9 @@ public class AuctionMatcher {
         }
     }
 
-    public LinkedList<MatchResult> execute(Order order) {
-        openPrice = findOpenPrice(order);
-        LinkedList<Order> chosenSide = chooseSide(order.getSecurity().getOrderBook());
+    public LinkedList<MatchResult> execute(Security security) {
+        openPrice = findOpenPrice(security);
+        LinkedList<Order> chosenSide = chooseSide(security.getOrderBook());
         for (Order curOrder : chosenSide) {
             MatchResult result = match(curOrder);
             if (!result.trades().isEmpty()) {
@@ -98,26 +98,26 @@ public class AuctionMatcher {
 
     public MatchResult updateOpenPriceWithNewOrder(Order order) {
         order.getSecurity().getOrderBook().enqueue(order);
-        openPrice = findOpenPrice(order);
+        openPrice = findOpenPrice(order.getSecurity());
         return MatchResult.openingPriceHasBeenSet(order.getSecurity().getIsin(), openPrice , tradableQuantity);
     }
 
-    private int findOpenPrice(Order order){
-        int maxLimit = order.getSecurity().getOrderBook().findMaxSellQueuePrice();
-        int minLimit = order.getSecurity().getOrderBook().findMinBuyQueuePrice();
+    private int findOpenPrice(Security security){
+        int maxLimit = security.getOrderBook().findMaxSellQueuePrice();
+        int minLimit = security.getOrderBook().findMinBuyQueuePrice();
         if (maxLimit < minLimit) {
             int temp = maxLimit;
             maxLimit = minLimit;
             minLimit = temp;
         }
-        return findOptimalOpenPrice(minLimit , maxLimit , order);
+        return findOptimalOpenPrice(minLimit , maxLimit , security);
     }
 
-    private int findOptimalOpenPrice(int minLimit , int maxLimit , Order order){
+    private int findOptimalOpenPrice(int minLimit , int maxLimit ,Security security){
         int maxQuantityTraded = Integer.MIN_VALUE;
         LinkedList<Integer> openPricesWithHighestQuantityTraded = new LinkedList<>();
         for (int i = minLimit; i <= maxLimit; i++) {
-            int overallQuantityTraded = findOverallQuantityTraded(i, order.getSecurity().getOrderBook());
+            int overallQuantityTraded = findOverallQuantityTraded(i, security.getOrderBook());
             if (overallQuantityTraded > maxQuantityTraded) {
                 maxQuantityTraded = overallQuantityTraded;
                 openPricesWithHighestQuantityTraded.clear();
@@ -127,7 +127,7 @@ public class AuctionMatcher {
             }
         }
         tradableQuantity = maxQuantityTraded;
-        return findClosestToLastTradePrice(openPricesWithHighestQuantityTraded , order);
+        return findClosestToLastTradePrice(openPricesWithHighestQuantityTraded , security);
     }
 
     private int findOverallQuantityTraded(int selectedOpenPrice, OrderBook orderBook){
@@ -194,10 +194,10 @@ public class AuctionMatcher {
         return sumQuantity;
     }
 
-    private int findClosestToLastTradePrice(LinkedList<Integer> openPricesWithHighestQuantityTraded , Order order) {
+    private int findClosestToLastTradePrice(LinkedList<Integer> openPricesWithHighestQuantityTraded , Security security) {
         int minDistance = Integer.MAX_VALUE;
         int minElement = Integer.MAX_VALUE;
-        int lastTradePrice = order.getSecurity().getLastTradePrice();
+        int lastTradePrice = security.getLastTradePrice();
         for (int price : openPricesWithHighestQuantityTraded) {
             int distance = Math.abs(price - lastTradePrice);
             if (distance < minDistance) {
