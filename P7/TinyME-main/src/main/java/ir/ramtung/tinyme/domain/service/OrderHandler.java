@@ -40,9 +40,14 @@ public class OrderHandler {
     public void handleChangeMatchingState(ChangeMatchingStateRq changeMatchingStateRq) {
         Security security = securityRepository.findSecurityByIsin(changeMatchingStateRq.getSecurityIsin());
         //maybe can make this with one matchResult
-        LinkedList<MatchResult> matchResults = security.changeState(changeMatchingStateRq);
+        LinkedList<MatchResult> matchResults = security.changeState(changeMatchingStateRq, auctionMatcher);
         eventPublisher.publish(new SecurityStateChangedEvent(security.getIsin(), security.getMatchingState()));
-        //publish TradeEvents
+        for (MatchResult matchResult : matchResults) {
+            for (Trade trade : matchResult.trades()) {
+                eventPublisher.publish(new TradeEvent(security.getIsin(), trade.getPrice(), trade.getQuantity(), trade.getBuy().getOrderId(), trade.getSell().getOrderId()));
+            }
+        }
+
     }
 
     public void handleEnterOrder(EnterOrderRq enterOrderRq) {
@@ -108,7 +113,7 @@ public class OrderHandler {
                     eventPublisher.publish(new OrderExecutedEvent(1, matchResult.remainder().getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
                 if (matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACTIVATED)
                     eventPublisher.publish(new OrderActivatedEvent(matchResult.remainder().getOrderId()));
-                if(matchResult.outcome()==MatchingOutcome.OPENING_PRICE_BEEN_SET)
+                if (matchResult.outcome() == MatchingOutcome.OPENING_PRICE_BEEN_SET)
                     eventPublisher.publish(new OpeningPriceEvent(matchResult.securityIsin(), matchResult.openingPrice(), matchResult.tradableQuantity()));
             }
         }

@@ -9,7 +9,6 @@ import java.util.LinkedList;
 @Getter
 @Service
 public class AuctionMatcher {
-    private LinkedList<MatchResult> matchResults = new LinkedList<>();
     private int openPrice;
     private int tradableQuantity;
 
@@ -19,38 +18,27 @@ public class AuctionMatcher {
         if ((curOrder.getSide() == Side.BUY && curOrder.getPrice() >= openPrice) || (curOrder.getSide() == Side.SELL &&
                 curOrder.getPrice() <= openPrice)) {
             addDifferenceBetweenPriceAndOpenPriceToBrokerCredit(curOrder);
-            if (orderBook.hasOrderOfType(curOrder.getSide().opposite()) && curOrder.getQuantity() > 0) {
-                while (orderBook.hasOrderOfType(curOrder.getSide().opposite()) && curOrder.getQuantity() > 0) {
-                    Order matchingOrder = orderBook.auctionMatchWithFirst(curOrder, openPrice);
-                    if (matchingOrder == null) {
-                        break;
-                    }
-                    applyTrade(curOrder, matchingOrder, trades);
-                    compareCurOrderAndMatchingOrderQuantity(curOrder, matchingOrder, orderBook);
-                }
-            }
-            else {
-                return  MatchResult.noAuctionOrderMatch();
+            while (orderBook.hasOrderOfType(curOrder.getSide().opposite()) && curOrder.getQuantity() > 0) {
+                Order matchingOrder = orderBook.auctionMatchWithFirst(curOrder, openPrice);
+                if (matchingOrder == null)
+                    break;
+                applyTrade(curOrder, matchingOrder, trades);
+                compareCurOrderAndMatchingOrderQuantity(curOrder, matchingOrder, orderBook);
             }
         }
         return MatchResult.executed(curOrder, trades);
     }
 
     private void addDifferenceBetweenPriceAndOpenPriceToBrokerCredit(Order curOrder) {
-        if (curOrder.getSide() == Side.BUY) {
+        if (curOrder.getSide() == Side.BUY)
             curOrder.getBroker().increaseCreditBy((long) Math.abs(curOrder.getPrice() - openPrice) * curOrder.getQuantity());
-        }
     }
-    
+
     private LinkedList<Order> chooseSide(OrderBook orderBook) {
-        LinkedList<Order> chosenSide;
-        if (findSumBuyQantitiesInOrderList(orderBook.getBuyQueue(), openPrice) > findSumSellQantitiesInOrderList(orderBook.getSellQueue(), openPrice)) {
-            chosenSide = orderBook.getBuyQueue();
-        }
-        else {
-            chosenSide = orderBook.getSellQueue();
-        }
-        return chosenSide;
+        if (findSumBuyQuantitiesInOrderList(orderBook.getBuyQueue(), openPrice) > findSumSellQuantitiesInOrderList(orderBook.getSellQueue(), openPrice))
+            return orderBook.getBuyQueue();
+        else
+            return orderBook.getSellQueue();
     }
 
     private void applyTrade(Order curOrder, Order matchingOrder, LinkedList<Trade> trades) {
@@ -78,6 +66,7 @@ public class AuctionMatcher {
     }
 
     public LinkedList<MatchResult> execute(Security security) {
+        LinkedList<MatchResult> matchResults = new LinkedList<>();
         openPrice = findOpenPrice(security);
         LinkedList<Order> chosenSide = chooseSide(security.getOrderBook());
         for (Order curOrder : chosenSide) {
@@ -96,10 +85,10 @@ public class AuctionMatcher {
     public MatchResult updateOpenPriceWithNewOrder(Order order) {
         order.getSecurity().getOrderBook().enqueue(order);
         openPrice = findOpenPrice(order.getSecurity());
-        return MatchResult.openingPriceHasBeenSet(order.getSecurity().getIsin(), openPrice , tradableQuantity);
+        return MatchResult.openingPriceHasBeenSet(order.getSecurity().getIsin(), openPrice, tradableQuantity);
     }
 
-    private int findOpenPrice(Security security){
+    private int findOpenPrice(Security security) {
         int maxLimit = security.getOrderBook().findMaxSellQueuePrice();
         int minLimit = security.getOrderBook().findMinBuyQueuePrice();
         if (maxLimit < minLimit) {
@@ -107,10 +96,10 @@ public class AuctionMatcher {
             maxLimit = minLimit;
             minLimit = temp;
         }
-        return findOptimalOpenPrice(minLimit , maxLimit , security);
+        return findOptimalOpenPrice(minLimit, maxLimit, security);
     }
 
-    private int findOptimalOpenPrice(int minLimit , int maxLimit ,Security security){
+    private int findOptimalOpenPrice(int minLimit, int maxLimit, Security security) {
         int maxQuantityTraded = Integer.MIN_VALUE;
         LinkedList<Integer> openPricesWithHighestQuantityTraded = new LinkedList<>();
         for (int i = minLimit; i <= maxLimit; i++) {
@@ -119,79 +108,65 @@ public class AuctionMatcher {
                 maxQuantityTraded = overallQuantityTraded;
                 openPricesWithHighestQuantityTraded.clear();
                 openPricesWithHighestQuantityTraded.add(i);
-            } else if (overallQuantityTraded == maxQuantityTraded) {
+            } else if (overallQuantityTraded == maxQuantityTraded)
                 openPricesWithHighestQuantityTraded.add(i);
-            }
         }
         tradableQuantity = maxQuantityTraded;
-        return findClosestToLastTradePrice(openPricesWithHighestQuantityTraded , security);
+        return findClosestToLastTradePrice(openPricesWithHighestQuantityTraded, security);
     }
 
-    private int findOverallQuantityTraded(int selectedOpenPrice, OrderBook orderBook){
-        LinkedList<Order> selectedBuyQueue = findSelectedBuyQueue(selectedOpenPrice , orderBook);
-        LinkedList<Order> selectedSellQueue = findSelectedSellQueue(selectedOpenPrice , orderBook);
-        if (selectedBuyQueue.isEmpty() || selectedSellQueue.isEmpty()) {
+    private int findOverallQuantityTraded(int selectedOpenPrice, OrderBook orderBook) {
+        LinkedList<Order> selectedBuyQueue = findSelectedBuyQueue(selectedOpenPrice, orderBook);
+        LinkedList<Order> selectedSellQueue = findSelectedSellQueue(selectedOpenPrice, orderBook);
+        if (selectedBuyQueue.isEmpty() || selectedSellQueue.isEmpty())
             return Integer.MIN_VALUE;
-        }
-        int sumQuantityinSellQueue = findSumQantitiesInOrderList(selectedSellQueue);
-        int sumQuantityinBuyQueue = findSumQantitiesInOrderList(selectedBuyQueue);
-        if (sumQuantityinSellQueue > sumQuantityinBuyQueue) {
-            return sumQuantityinBuyQueue;
-        }
-        else{
-            return sumQuantityinSellQueue;
-        }
+        return Math.min(findSumQuantitiesInOrderList(selectedSellQueue), findSumQuantitiesInOrderList(selectedBuyQueue));
     }
 
-    private LinkedList<Order> findSelectedBuyQueue(int selectedOpenPrice, OrderBook orderBook){
+    private LinkedList<Order> findSelectedBuyQueue(int selectedOpenPrice, OrderBook orderBook) {
         LinkedList<Order> selectedBuyQueue = new LinkedList<>();
         for (Order order : orderBook.getBuyQueue()) {
-            if(order.getPrice() >= selectedOpenPrice){
+            if (order.getPrice() >= selectedOpenPrice)
                 selectedBuyQueue.add(order);
-            }
         }
         return selectedBuyQueue;
     }
 
-    private LinkedList<Order> findSelectedSellQueue(int selectedOpenPrice, OrderBook orderBook){
+    private LinkedList<Order> findSelectedSellQueue(int selectedOpenPrice, OrderBook orderBook) {
         LinkedList<Order> selectedSellQueue = new LinkedList<>();
         for (Order order : orderBook.getSellQueue()) {
-            if(order.getPrice() <= selectedOpenPrice){
+            if (order.getPrice() <= selectedOpenPrice)
                 selectedSellQueue.add(order);
-            }
         }
         return selectedSellQueue;
     }
 
-    private int findSumBuyQantitiesInOrderList(LinkedList<Order> orders, int openPrice){
+    private int findSumBuyQuantitiesInOrderList(LinkedList<Order> orders, int openPrice) {
         int sumBuyQuantity = 0;
         for (Order order : orders) {
-            if (order.getPrice() >= openPrice) {
+            if (order.getPrice() >= openPrice)
                 sumBuyQuantity += order.getTotalQuantity();
-            }
         }
         return sumBuyQuantity;
     }
 
-    private int findSumSellQantitiesInOrderList(LinkedList<Order> orders, int openPrice){
+    private int findSumSellQuantitiesInOrderList(LinkedList<Order> orders, int openPrice) {
         int sumSellQuantity = 0;
         for (Order order : orders) {
-            if (order.getPrice() <= openPrice) {
+            if (order.getPrice() <= openPrice)
                 sumSellQuantity += order.getTotalQuantity();
-            }
         }
         return sumSellQuantity;
     }
 
-    private int findSumQantitiesInOrderList(LinkedList<Order> orders){
+    private int findSumQuantitiesInOrderList(LinkedList<Order> orders) {
         int sumQuantity = 0;
-        for (Order order : orders) {
+        for (Order order : orders)
             sumQuantity += order.getTotalQuantity();
-        }
         return sumQuantity;
     }
 
-    private int findClosestToLastTradePrice(LinkedList<Integer> openPricesWithHighestQuantityTraded , Security security) {
+    private int findClosestToLastTradePrice(LinkedList<Integer> openPricesWithHighestQuantityTraded, Security security) {
         int minDistance = Integer.MAX_VALUE;
         int minElement = Integer.MAX_VALUE;
         int lastTradePrice = security.getLastTradePrice();
@@ -200,9 +175,8 @@ public class AuctionMatcher {
             if (distance < minDistance) {
                 minDistance = distance;
                 minElement = price;
-            } else if (distance == minDistance && price < minElement) {
+            } else if (distance == minDistance && price < minElement)
                 minElement = price;
-            }
         }
         return minElement;
     }

@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(callSuper = false)
 @AllArgsConstructor
 @NoArgsConstructor
-public class TradeEvent extends Event{
+public class TradeEvent extends Event {
     @JsonDeserialize(using = LocalDateTimeDeserializer.class)
     private LocalDateTime time;
     private String securityIsin;
@@ -23,7 +23,7 @@ public class TradeEvent extends Event{
     private long buyId;
     private long sellId;
 
-    public TradeEvent(String securityIsin, int price, int quantity, int buyId, int sellId) {
+    public TradeEvent(String securityIsin, int price, int quantity, long buyId, long sellId) {
         this.time = LocalDateTime.now();
         this.securityIsin = securityIsin;
         this.price = price;

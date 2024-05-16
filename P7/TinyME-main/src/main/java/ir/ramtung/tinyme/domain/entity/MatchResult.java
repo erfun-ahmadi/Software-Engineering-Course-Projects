@@ -24,10 +24,6 @@ public final class MatchResult {
         return new MatchResult(MatchingOutcome.NOT_ENOUGH_POSITIONS, null, new LinkedList<>());
     }
 
-    public static MatchResult noAuctionOrderMatch() {
-        return new MatchResult(MatchingOutcome.NO_AUCTION_ORDERS_IN_OPPOSITE_SIDE, null, new LinkedList<>());
-    }
-
     public static MatchResult notEnoughQuantitiesTraded() {
         return new MatchResult(MatchingOutcome.NOT_ENOUGH_QUANTITIES_TRADED, null, new LinkedList<>());
     }

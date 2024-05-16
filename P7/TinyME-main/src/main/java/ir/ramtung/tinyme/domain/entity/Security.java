@@ -11,6 +11,7 @@ import ir.ramtung.tinyme.messaging.request.MatchingState;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.util.LinkedCaseInsensitiveMap;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -31,12 +32,12 @@ public class Security {
     @Builder.Default
     private MatchingState matchingState = MatchingState.CONTINUOUS;
 
-    public LinkedList<MatchResult> changeState(ChangeMatchingStateRq changeMatchingStateRq) {
-        if (matchingState==MatchingState.AUCTION){
-            //get results from matcher
-        }
-        matchingState=changeMatchingStateRq.getTargetState();
-        return null;
+    public LinkedList<MatchResult> changeState(ChangeMatchingStateRq changeMatchingStateRq, AuctionMatcher auctionMatcher) {
+        LinkedList<MatchResult> matchResults = new LinkedList<>();
+        if (matchingState == MatchingState.AUCTION)
+            matchResults = auctionMatcher.execute(this);
+        matchingState = changeMatchingStateRq.getTargetState();
+        return matchResults;
     }
 
     public LinkedList<MatchResult> newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, Matcher matcher, AuctionMatcher auctionMatcher) {
