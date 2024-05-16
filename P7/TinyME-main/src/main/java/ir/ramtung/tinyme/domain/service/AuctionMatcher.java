@@ -1,9 +1,11 @@
 package ir.ramtung.tinyme.domain.service;
 
 import ir.ramtung.tinyme.domain.entity.*;
+import lombok.Getter;
 
 import java.util.LinkedList;
 
+@Getter
 public class AuctionMatcher {
     private LinkedList<MatchResult> matchResults = new LinkedList<>();
     private int openPrice;
