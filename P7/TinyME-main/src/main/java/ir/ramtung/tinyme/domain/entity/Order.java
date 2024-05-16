@@ -97,13 +97,6 @@ public class Order {
             return price <= other.price;
     }
 
-    public boolean matchesAuction(Order other, int openPrice) {
-        if (side == Side.BUY)
-            return other.price <= openPrice;
-        else
-            return other.price >= openPrice;
-    }
-
     public void decreaseQuantity(int amount) {
         if (amount > quantity)
             throw new IllegalArgumentException();
@@ -164,5 +157,13 @@ public class Order {
 
     public boolean isUpdateStopPriceInvalid(EnterOrderRq updateOrderRq) {
         return (stopPrice == 0 && updateOrderRq.getStopPrice() != 0) || (stopPrice != updateOrderRq.getStopPrice() && !inactive);
+    }
+
+    //better name maybe
+    public boolean isPriceGood(int openPrice){
+        if (side == Side.BUY)
+            return price >= openPrice;
+        else
+            return price <= openPrice;
     }
 }

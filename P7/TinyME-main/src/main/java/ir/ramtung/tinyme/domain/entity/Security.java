@@ -5,13 +5,12 @@ import ir.ramtung.tinyme.messaging.exception.InvalidRequestException;
 import ir.ramtung.tinyme.messaging.request.ChangeMatchingStateRq;
 import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
-import ir.ramtung.tinyme.domain.service.Matcher;
+import ir.ramtung.tinyme.domain.service.ContinuousMatcher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.request.MatchingState;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.util.LinkedCaseInsensitiveMap;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -40,14 +39,14 @@ public class Security {
         return matchResults;
     }
 
-    public LinkedList<MatchResult> newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, Matcher matcher, AuctionMatcher auctionMatcher) {
+    public LinkedList<MatchResult> newOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, ContinuousMatcher continuousMatcher, AuctionMatcher auctionMatcher) {
         if (enterOrderRq.getSide() == Side.SELL &&
                 !shareholder.hasEnoughPositionsOn(this,
                         orderBook.totalSellQuantityByShareholder(shareholder) + enterOrderRq.getQuantity())) {
             return new LinkedList<>(List.of(MatchResult.notEnoughPositions()));
         }
         if (matchingState == MatchingState.CONTINUOUS)
-            return newContinuousOrder(enterOrderRq, broker, shareholder, matcher);
+            return newContinuousOrder(enterOrderRq, broker, shareholder, continuousMatcher);
         else
             return newAuctionOrder(enterOrderRq, broker, shareholder, auctionMatcher);
 
@@ -72,7 +71,7 @@ public class Security {
         return matchResults;
     }
 
-    private LinkedList<MatchResult> newContinuousOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, Matcher matcher) {
+    private LinkedList<MatchResult> newContinuousOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, ContinuousMatcher continuousMatcher) {
         LinkedList<MatchResult> matchResults = new LinkedList<>();
         Order order = null;
         if (enterOrderRq.getPeakSize() == 0) {
@@ -102,8 +101,8 @@ public class Security {
             orderBook.enqueue(order);
             return matchResults;
         }
-        matcher.clearMatchResults();
-        matchResults.addAll(matcher.execute(order));
+        continuousMatcher.clearMatchResults();
+        matchResults.addAll(continuousMatcher.execute(order));
         return matchResults;
     }
 
@@ -116,7 +115,7 @@ public class Security {
         orderBook.removeByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId(), deleteOrderRq.isInactive());
     }
 
-    public LinkedList<MatchResult> updateOrder(EnterOrderRq updateOrderRq, Matcher matcher) throws InvalidRequestException {
+    public LinkedList<MatchResult> updateOrder(EnterOrderRq updateOrderRq, ContinuousMatcher continuousMatcher) throws InvalidRequestException {
         Order order = orderBook.findByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId(), updateOrderRq.isInactive());
         if (order == null)
             throw new InvalidRequestException(Message.ORDER_ID_NOT_FOUND);
@@ -144,8 +143,8 @@ public class Security {
                 if (order.shouldActivate()) {
                     order.activate();
                     matchResults.add(MatchResult.stopLimitOrderActivated(order));
-                    matcher.clearMatchResults();
-                    matchResults.addAll(matcher.execute(order));
+                    continuousMatcher.clearMatchResults();
+                    matchResults.addAll(continuousMatcher.execute(order));
                     return matchResults;
                 } else {
                     orderBook.enqueue(order);
@@ -178,8 +177,8 @@ public class Security {
             order.markAsNew();
 
         orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId(), updateOrderRq.isInactive());
-        matcher.clearMatchResults();
-        matchResults.addAll(matcher.execute(order));
+        continuousMatcher.clearMatchResults();
+        matchResults.addAll(continuousMatcher.execute(order));
         if (matchResults.getFirst().outcome() != MatchingOutcome.EXECUTED) {
             orderBook.enqueue(originalOrder);
             if (updateOrderRq.getSide() == Side.BUY) {

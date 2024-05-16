@@ -25,15 +25,15 @@ public class OrderHandler {
     BrokerRepository brokerRepository;
     ShareholderRepository shareholderRepository;
     EventPublisher eventPublisher;
-    Matcher matcher;
+    ContinuousMatcher continuousMatcher;
     AuctionMatcher auctionMatcher;
 
-    public OrderHandler(SecurityRepository securityRepository, BrokerRepository brokerRepository, ShareholderRepository shareholderRepository, EventPublisher eventPublisher, Matcher matcher, AuctionMatcher auctionMatcher) {
+    public OrderHandler(SecurityRepository securityRepository, BrokerRepository brokerRepository, ShareholderRepository shareholderRepository, EventPublisher eventPublisher, ContinuousMatcher continuousMatcher, AuctionMatcher auctionMatcher) {
         this.securityRepository = securityRepository;
         this.brokerRepository = brokerRepository;
         this.shareholderRepository = shareholderRepository;
         this.eventPublisher = eventPublisher;
-        this.matcher = matcher;
+        this.continuousMatcher = continuousMatcher;
         this.auctionMatcher = auctionMatcher;
     }
 
@@ -47,7 +47,6 @@ public class OrderHandler {
                 eventPublisher.publish(new TradeEvent(security.getIsin(), trade.getPrice(), trade.getQuantity(), trade.getBuy().getOrderId(), trade.getSell().getOrderId()));
             }
         }
-
     }
 
     public void handleEnterOrder(EnterOrderRq enterOrderRq) {
@@ -60,9 +59,9 @@ public class OrderHandler {
 
             LinkedList<MatchResult> matchResults;
             if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER)
-                matchResults = security.newOrder(enterOrderRq, broker, shareholder, matcher, auctionMatcher);
+                matchResults = security.newOrder(enterOrderRq, broker, shareholder, continuousMatcher, auctionMatcher);
             else
-                matchResults = security.updateOrder(enterOrderRq, matcher);
+                matchResults = security.updateOrder(enterOrderRq, continuousMatcher);
 
             if (matchResults.isEmpty()) {
                 eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));

@@ -100,7 +100,7 @@ public class OrderBook {
 
     public Order auctionMatchWithFirst(Order newOrder, int openPrice) {
         var queue = (newOrder.getSide() == Side.BUY ? sellQueue : buyQueue);
-        if (newOrder.matchesAuction(queue.getFirst(), openPrice))
+        if (queue.getFirst().isPriceGood(openPrice))
             return queue.getFirst();
         else
             return null;

@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.ListIterator;
 
 @Service
-public class Matcher {
+public class ContinuousMatcher {
     private LinkedList<MatchResult> matchResults = new LinkedList<>();
 
     public MatchResult match(Order newOrder) {

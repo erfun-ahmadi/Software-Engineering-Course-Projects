@@ -12,26 +12,25 @@ public class AuctionMatcher {
     private int openPrice;
     private int tradableQuantity;
 
-    public MatchResult match(Order curOrder) {
-        OrderBook orderBook = curOrder.getSecurity().getOrderBook();
+    public MatchResult match(Order order) {
+        OrderBook orderBook = order.getSecurity().getOrderBook();
         LinkedList<Trade> trades = new LinkedList<>();
-        if ((curOrder.getSide() == Side.BUY && curOrder.getPrice() >= openPrice) || (curOrder.getSide() == Side.SELL &&
-                curOrder.getPrice() <= openPrice)) {
-            addDifferenceBetweenPriceAndOpenPriceToBrokerCredit(curOrder);
-            while (orderBook.hasOrderOfType(curOrder.getSide().opposite()) && curOrder.getQuantity() > 0) {
-                Order matchingOrder = orderBook.auctionMatchWithFirst(curOrder, openPrice);
+        if (order.isPriceGood(openPrice)) {
+            addDifferenceBetweenPriceAndOpenPriceToBrokerCredit(order);
+            while (orderBook.hasOrderOfType(order.getSide().opposite()) && order.getQuantity() > 0) {
+                Order matchingOrder = orderBook.auctionMatchWithFirst(order, openPrice);
                 if (matchingOrder == null)
                     break;
-                applyTrade(curOrder, matchingOrder, trades);
-                compareCurOrderAndMatchingOrderQuantity(curOrder, matchingOrder, orderBook);
+                trades.add(applyTrade(order, matchingOrder));
+                compareOrderAndMatchingOrderQuantity(order, matchingOrder, orderBook);
             }
         }
-        return MatchResult.executed(curOrder, trades);
+        return MatchResult.executed(order, trades);
     }
 
-    private void addDifferenceBetweenPriceAndOpenPriceToBrokerCredit(Order curOrder) {
-        if (curOrder.getSide() == Side.BUY)
-            curOrder.getBroker().increaseCreditBy((long) Math.abs(curOrder.getPrice() - openPrice) * curOrder.getQuantity());
+    private void addDifferenceBetweenPriceAndOpenPriceToBrokerCredit(Order order) {
+        if (order.getSide() == Side.BUY)
+            order.getBroker().increaseCreditBy((long) Math.abs(order.getPrice() - openPrice) * order.getQuantity());
     }
 
     private LinkedList<Order> chooseSide(OrderBook orderBook) {
@@ -41,17 +40,17 @@ public class AuctionMatcher {
             return orderBook.getSellQueue();
     }
 
-    private void applyTrade(Order curOrder, Order matchingOrder, LinkedList<Trade> trades) {
-        Trade trade = new Trade(curOrder.getSecurity(), openPrice, Math.min(curOrder.getQuantity(), matchingOrder.getQuantity()),
-                curOrder, matchingOrder);
+    private Trade applyTrade(Order order, Order matchingOrder) {
+        Trade trade = new Trade(order.getSecurity(), openPrice, Math.min(order.getQuantity(), matchingOrder.getQuantity()),
+                order, matchingOrder);
         trade.decreaseBuyersCredit();
         trade.increaseSellersCredit();
-        trades.add(trade);
+        return trade;
     }
 
-    private void compareCurOrderAndMatchingOrderQuantity(Order curOrder, Order matchingOrder, OrderBook orderBook) {
-        if (curOrder.getQuantity() >= matchingOrder.getQuantity()) {
-            curOrder.decreaseQuantity(matchingOrder.getQuantity());
+    private void compareOrderAndMatchingOrderQuantity(Order order, Order matchingOrder, OrderBook orderBook) {
+        if (order.getQuantity() >= matchingOrder.getQuantity()) {
+            order.decreaseQuantity(matchingOrder.getQuantity());
             orderBook.removeFirst(matchingOrder.getSide());
             if (matchingOrder instanceof IcebergOrder icebergOrder) {
                 icebergOrder.decreaseQuantity(matchingOrder.getQuantity());
@@ -60,8 +59,8 @@ public class AuctionMatcher {
                     orderBook.enqueue(icebergOrder);
             }
         } else {
-            matchingOrder.decreaseQuantity(curOrder.getQuantity());
-            curOrder.makeQuantityZero();
+            matchingOrder.decreaseQuantity(order.getQuantity());
+            order.makeQuantityZero();
         }
     }
 
@@ -69,8 +68,8 @@ public class AuctionMatcher {
         LinkedList<MatchResult> matchResults = new LinkedList<>();
         openPrice = findOpenPrice(security);
         LinkedList<Order> chosenSide = chooseSide(security.getOrderBook());
-        for (Order curOrder : chosenSide) {
-            MatchResult result = match(curOrder);
+        for (Order order : chosenSide) {
+            MatchResult result = match(order);
             if (!result.trades().isEmpty()) {
                 for (Trade trade : result.trades()) {
                     trade.getBuy().getShareholder().incPosition(trade.getSecurity(), trade.getQuantity());
