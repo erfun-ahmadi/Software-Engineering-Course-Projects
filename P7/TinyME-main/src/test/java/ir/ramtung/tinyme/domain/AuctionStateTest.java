@@ -9,6 +9,7 @@ import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.event.*;
 import ir.ramtung.tinyme.messaging.request.ChangeMatchingStateRq;
 import ir.ramtung.tinyme.messaging.request.EnterOrderRq;
+import ir.ramtung.tinyme.messaging.request.DeleteOrderRq;
 import ir.ramtung.tinyme.messaging.request.MatchingState;
 import ir.ramtung.tinyme.repository.BrokerRepository;
 import ir.ramtung.tinyme.repository.SecurityRepository;
@@ -175,6 +176,8 @@ class AuctionStateTest {
                 0, 0, 0, false));
         assertThat(broker2.getCredit()).isEqualTo(100_000);
         assertThat(orderBook.findByOrderId(Side.SELL, 5, false).getPrice()).isEqualTo(16000);
+        int openPrice = auctionMatcher.findOpeningPrice(security);
+        assertThat(openPrice).isEqualTo(15800);
     }
 
     @Test
@@ -185,6 +188,8 @@ class AuctionStateTest {
                 0, 0, 0, false));
         assertThat(broker1.getCredit()).isEqualTo(153_300);
         assertThat(orderBook.findByOrderId(Side.BUY, 10, false).getPrice()).isEqualTo(15000);
+        int openPrice = auctionMatcher.findOpeningPrice(security);
+        assertThat(openPrice).isEqualTo(15450);
     }
 
     @Test
@@ -393,5 +398,25 @@ class AuctionStateTest {
         assertThat(outputEvent.getQuantity()).isEqualTo(304);
         assertThat(outputEvent.getBuyId()).isEqualTo(6);
         assertThat(outputEvent.getSellId()).isEqualTo(1);
+    }
+
+    @Test
+    void delete_buy_order_deletes_successfully_and_increases_credit_in_auction_state() {
+        security.setMatchingState(MatchingState.AUCTION);
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(1, security.getIsin(), Side.BUY, 6));
+        verify(eventPublisher).publish(new OrderDeletedEvent(1, 6));
+        assertThat(broker2.getCredit()).isEqualTo(5630000);
+        int openPrice = auctionMatcher.findOpeningPrice(security);
+        assertThat(openPrice).isEqualTo(15700);
+    }
+
+    @Test
+    void delete_sell_order_deletes_successfully_and_increases_credit_in_auction_state() {
+        security.setMatchingState(MatchingState.AUCTION);
+        orderHandler.handleDeleteOrder(new DeleteOrderRq(1, security.getIsin(), Side.SELL, 1));
+        verify(eventPublisher).publish(new OrderDeletedEvent(1, 1));
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+        int openPrice = auctionMatcher.findOpeningPrice(security);
+        assertThat(openPrice).isEqualTo(15500);
     }
 }
