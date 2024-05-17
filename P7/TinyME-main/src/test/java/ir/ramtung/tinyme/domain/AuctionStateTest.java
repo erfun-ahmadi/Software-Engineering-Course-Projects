@@ -333,7 +333,7 @@ class AuctionStateTest {
                 LocalDateTime.now(), Side.SELL, 100, 15400, broker2.getBrokerId(), shareholder.getShareholderId(),
                 0, 0, 0, false));
         assertThat(broker2.getCredit()).isEqualTo(100_000);
-        assertThat(orderBook.getSellQueue().get(0).getQuantity()).isEqualTo(100);
+        assertThat(orderBook.findByOrderId(Side.SELL, 5, false).getQuantity()).isEqualTo(100);
         int openPrice = auctionMatcher.findOpeningPrice(security);
         assertThat(openPrice).isEqualTo(15700);
     }
@@ -345,7 +345,7 @@ class AuctionStateTest {
                 LocalDateTime.now(), Side.BUY, 55, 15820, broker1.getBrokerId(), shareholder.getShareholderId(),
                 0, 0, 0, false));
         assertThat(broker1.getCredit()).isEqualTo(258200);
-        assertThat(orderBook.getBuyQueue().get(1).getQuantity()).isEqualTo(55);
+        assertThat(orderBook.findByOrderId(Side.BUY, 10, false).getQuantity()).isEqualTo(55);
         int openPrice = auctionMatcher.findOpeningPrice(security);
         assertThat(openPrice).isEqualTo(15700);
     }
@@ -372,5 +372,26 @@ class AuctionStateTest {
         assertThat(outputEvent.getSecurityIsin()).isEqualTo("ABC");
         assertThat(outputEvent.getOpeningPrice()).isEqualTo(15450);
         assertThat(outputEvent.getTradableQuantity()).isEqualTo(1840);
+    }
+
+    @Test
+    void publish_trades_successfully(){
+        Security security1 = Security.builder().build();
+        securityRepository.addSecurity(security1);
+        List<Order> orders = Arrays.asList(
+                new Order(1, security1, Side.SELL, 304, 15700, 0, broker1, shareholder, 0),
+                new Order(6, security1, Side.BUY, 350, 15800, 0, broker2, shareholder, 0)
+        );
+        orders.forEach(order -> security1.getOrderBook().enqueue(order));
+        security1.setMatchingState(MatchingState.AUCTION);
+        orderHandler.handleChangeMatchingState(new ChangeMatchingStateRq(security1.getIsin(), MatchingState.AUCTION));
+        ArgumentCaptor<TradeEvent> tradeEventCaptor = ArgumentCaptor.forClass(TradeEvent.class);
+        verify(eventPublisher).publish(tradeEventCaptor.capture());
+        TradeEvent outputEvent = tradeEventCaptor.getValue();
+        assertThat(outputEvent.getSecurityIsin()).isEqualTo(security1.getIsin());
+        assertThat(outputEvent.getPrice()).isEqualTo(15700);
+        assertThat(outputEvent.getQuantity()).isEqualTo(304);
+        assertThat(outputEvent.getBuyId()).isEqualTo(6);
+        assertThat(outputEvent.getSellId()).isEqualTo(1);
     }
 }
