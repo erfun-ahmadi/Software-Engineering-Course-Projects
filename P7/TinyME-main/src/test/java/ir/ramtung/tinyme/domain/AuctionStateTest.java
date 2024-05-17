@@ -195,7 +195,7 @@ class AuctionStateTest {
 
 
     @Test
-    void findTradableQuantityIfTotalOfBuyQueueIsLower() {
+    void find_tradable_quantity_if_total_of_buy_queue_is_lower() {
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
         security.setLastTradePrice(10000);
@@ -204,7 +204,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void findTradableQuantityIfTotalOfSellQueueIsLower() {
+    void find_tradable_quantity_if_total_of_sell_queue_is_lower() {
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY, 1000, 15870, 0, broker2, shareholder, 0);
         security.setLastTradePrice(10000);
@@ -213,7 +213,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void findTradableQuantityIfMaxSellQueuePriceIsMoreThanMinBuyQueuePrice() {
+    void find_tradable_quantity_if_max_sell_queue_price_is_more_than_min_buy_queue_price() {
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY, 1200, 15470, 0, broker2, shareholder, 0);
         security.setLastTradePrice(10000);
@@ -222,7 +222,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void findTradableQuantityIfMaxSellQueuePriceIsLowerThanMinBuyQueuePrice() {
+    void find_tradable_quantity_if_max_sell_queue_price_is_less_than_min_buy_queue_price() {
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY, 1200, 15470, 0, broker2, shareholder, 0);
         security.setLastTradePrice(10000);
@@ -231,7 +231,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void findTradableQuantityWithIcebergOrder() {
+    void find_tradable_quantity_with_iceberg_order() {
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new IcebergOrder(11, security, Side.BUY , 200, 15800 , 0 , broker2, shareholder, LocalDateTime.now() , 0 ,  100,  OrderStatus.QUEUED , 0);
         security.setLastTradePrice(10000);
@@ -240,7 +240,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void findTradableQuantityWithNoOrderRequest(){
+    void find_tradable_quantity_with_no_order_request(){
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY , 300, 15800 , 0 , broker2, shareholder, 0 );
         security.setLastTradePrice(10000);
@@ -251,7 +251,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void findOpenPriceWhichOneCandidateClosestAndLowerToLastTradePrice(){
+    void find_open_price_with_one_candidate_closest_and_lower_to_last_trade_price(){
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
         security.setLastTradePrice(15820);
@@ -260,7 +260,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void findOpenPriceWhichTwoCandidateClosestToLastTradePrice(){
+    void find_open_price_with_two_candidate_closest_to_last_trade_price(){
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         security.setLastTradePrice(10000);
         LinkedList<Integer> prices = new LinkedList<>();
@@ -273,7 +273,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void addNewOrderButDontChangeOpenPrice(){
+    void add_new_order_that_dont_change_open_price(){
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
         security.setLastTradePrice(15820);
@@ -285,7 +285,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void addNewOrderButDontChangeTradableQuantity(){
+    void add_new_order_that_dont_change_tradable_quantity(){
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
         security.setLastTradePrice(10000);
@@ -297,7 +297,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void addNewOrderChangeTradableQuantityButDontChangeOpenPrice(){
+    void add_new_order_change_tradable_quantity_but_dont_change_open_price(){
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
         security.setLastTradePrice(15820);
@@ -311,7 +311,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void addNewOrderChangeOpenPriceButDontChangeTradableQuantity(){
+    void add_new_order_change_open_price_but_dont_change_tradable_quantity(){
         AuctionMatcher auctionMatcher = new AuctionMatcher();
         Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
         security.setLastTradePrice(10000);
