@@ -106,7 +106,7 @@ public class Security {
         orderBook.removeByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId(), deleteOrderRq.isInactive());
     }
 
-    public LinkedList<MatchResult> updateOrder(EnterOrderRq updateOrderRq, ContinuousMatcher continuousMatcher) throws InvalidRequestException {
+    public LinkedList<MatchResult> updateOrder(EnterOrderRq updateOrderRq, ContinuousMatcher continuousMatcher, AuctionMatcher auctionMatcher) throws InvalidRequestException {
         Order order = orderBook.findByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId(), updateOrderRq.isInactive());
         if (order == null)
             throw new InvalidRequestException(Message.ORDER_ID_NOT_FOUND);
@@ -118,6 +118,30 @@ public class Security {
             throw new InvalidRequestException(Message.CANNOT_SPECIFY_PEAK_SIZE_FOR_A_NON_ICEBERG_ORDER);
         if (order.isUpdateStopPriceInvalid(updateOrderRq))
             throw new InvalidRequestException(Message.INVALID_UPDATE_STOP_PRICE);
+        if (updateOrderRq.getSide() == Side.SELL &&
+                !order.getShareholder().hasEnoughPositionsOn(this,
+                        orderBook.totalSellQuantityByShareholder(order.getShareholder()) - order.getQuantity() + updateOrderRq.getQuantity()))
+            return new LinkedList<>(List.of(MatchResult.notEnoughPositions()));
+
+        if (matchingState == MatchingState.CONTINUOUS)
+            return updateOrderContinuous(updateOrderRq, order, continuousMatcher);
+        else
+            return new LinkedList<>(List.of(updateOrderAuction(updateOrderRq, order, auctionMatcher)));
+    }
+
+    public MatchResult updateOrderAuction(EnterOrderRq updateOrderRq, Order order, AuctionMatcher auctionMatcher) {
+        if (order.getSide() == Side.BUY) {
+            order.getBroker().increaseCreditBy(order.getValue());
+            if (!order.getBroker().hasEnoughCredit(updateOrderRq.getValue()))
+                return MatchResult.notEnoughCredit();
+            order.getBroker().decreaseCreditBy(updateOrderRq.getValue());
+        }
+        order.updateFromRequest(updateOrderRq);
+        orderBook.removeByOrderId(order.getSide(), order.getOrderId(), false);
+        return auctionMatcher.updateOpeningPriceWithNewOrder(order);
+    }
+
+    public LinkedList<MatchResult> updateOrderContinuous(EnterOrderRq updateOrderRq, Order order, ContinuousMatcher continuousMatcher) {
         LinkedList<MatchResult> matchResults = new LinkedList<>();
         if (updateOrderRq.getStopPrice() != 0) {
             if ((updateOrderRq.getStopPrice() != order.getStopPrice()) || (updateOrderRq.getPrice() != order.getPrice()) || (updateOrderRq.getQuantity() != order.getQuantity())) {
@@ -142,12 +166,6 @@ public class Security {
                     return new LinkedList<>();
                 }
             }
-        }
-        if (updateOrderRq.getSide() == Side.SELL &&
-                !order.getShareholder().hasEnoughPositionsOn(this,
-                        orderBook.totalSellQuantityByShareholder(order.getShareholder()) - order.getQuantity() + updateOrderRq.getQuantity())) {
-            matchResults.add(MatchResult.notEnoughPositions());
-            return matchResults;
         }
         boolean losesPriority = order.isQuantityIncreased(updateOrderRq.getQuantity())
                 || updateOrderRq.getPrice() != order.getPrice()

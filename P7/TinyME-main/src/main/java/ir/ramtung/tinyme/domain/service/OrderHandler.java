@@ -57,7 +57,7 @@ public class OrderHandler {
             if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER)
                 matchResults = security.newOrder(enterOrderRq, broker, shareholder, continuousMatcher, auctionMatcher);
             else
-                matchResults = security.updateOrder(enterOrderRq, continuousMatcher);
+                matchResults = security.updateOrder(enterOrderRq, continuousMatcher, auctionMatcher);
 
             if (matchResults.isEmpty()) {
                 eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));

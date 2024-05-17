@@ -87,7 +87,6 @@ class AuctionStateTest {
     }
 
 
-
     @Test
     void change_state_from_continuous_to_auction_successful() {
         orderHandler.handleChangeMatchingState(new ChangeMatchingStateRq("ABC", MatchingState.AUCTION));
@@ -175,7 +174,7 @@ class AuctionStateTest {
                 LocalDateTime.now(), Side.SELL, 1000, 16000, broker2.getBrokerId(), shareholder.getShareholderId(),
                 0, 0, 0, false));
         assertThat(broker2.getCredit()).isEqualTo(100_000);
-        assertThat(orderBook.getSellQueue().get(4).getPrice()).isEqualTo(16000);
+        assertThat(orderBook.findByOrderId(Side.SELL, 5, false).getPrice()).isEqualTo(16000);
     }
 
     @Test
@@ -185,7 +184,7 @@ class AuctionStateTest {
                 LocalDateTime.now(), Side.BUY, 65, 15000, broker1.getBrokerId(), shareholder.getShareholderId(),
                 0, 0, 0, false));
         assertThat(broker1.getCredit()).isEqualTo(153_300);
-        assertThat(orderBook.getBuyQueue().get(4).getPrice()).isEqualTo(15000);
+        assertThat(orderBook.findByOrderId(Side.BUY, 10, false).getPrice()).isEqualTo(15000);
     }
 
     @Test
@@ -222,15 +221,15 @@ class AuctionStateTest {
 
     @Test
     void calculating_tradable_quantity_with_iceberg_order_successful() {
-        Order newOrder = new IcebergOrder(11, security, Side.BUY , 200, 15800 , 0 , broker2, shareholder, LocalDateTime.now() , 0 ,  100,  OrderStatus.QUEUED , 0);
+        Order newOrder = new IcebergOrder(11, security, Side.BUY, 200, 15800, 0, broker2, shareholder, LocalDateTime.now(), 0, 100, OrderStatus.QUEUED, 0);
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2040);
     }
 
     @Test
-    void calculating_tradable_quantity_with_no_order_request_successful(){
-        Order newOrder = new Order(11, security, Side.BUY , 300, 15800 , 0 , broker2, shareholder, 0 );
+    void calculating_tradable_quantity_with_no_order_request_successful() {
+        Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2140);
@@ -239,7 +238,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void calculating_open_price_with_one_candidate_closest_and_lower_to_last_trade_price_successful(){
+    void calculating_open_price_with_one_candidate_closest_and_lower_to_last_trade_price_successful() {
         Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
         security.setLastTradePrice(15820);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
@@ -247,7 +246,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void calculating_open_price_with_two_candidate_closest_to_last_trade_price_successful(){
+    void calculating_open_price_with_two_candidate_closest_to_last_trade_price_successful() {
         security.setLastTradePrice(10000);
         LinkedList<Integer> prices = new LinkedList<>(Arrays.asList(1005, 9995, 9990, 10010));
         int bestOpenPrice = auctionMatcher.findClosestToLastTradePrice(prices, security);
@@ -255,7 +254,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void adding_new_order_that_does_not_change_open_price(){
+    void adding_new_order_that_does_not_change_open_price() {
         Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
         security.setLastTradePrice(15820);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
@@ -266,7 +265,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void adding_new_order_that_does_not_change_tradable_quantity(){
+    void adding_new_order_that_does_not_change_tradable_quantity() {
         Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
@@ -277,7 +276,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void adding_new_order_that_changes_tradable_quantity_but_does_not_change_open_price(){
+    void adding_new_order_that_changes_tradable_quantity_but_does_not_change_open_price() {
         Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
         security.setLastTradePrice(15820);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
@@ -290,7 +289,7 @@ class AuctionStateTest {
     }
 
     @Test
-    void adding_new_order_that_changes_open_price_but_does_not_change_tradable_quantity(){
+    void adding_new_order_that_changes_open_price_but_does_not_change_tradable_quantity() {
         Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
@@ -351,9 +350,8 @@ class AuctionStateTest {
         assertThat(openPrice).isEqualTo(15700);
     }
 
-
     @Test
-    void new_stop_limit_order_changes_opening_price_and_tradable_quantity(){
+    void new_stop_limit_order_changes_opening_price_and_tradable_quantity() {
         int firstOpeningPrice = auctionMatcher.findOpeningPrice(security);
         assertThat(firstOpeningPrice).isEqualTo(15700);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
@@ -362,5 +360,17 @@ class AuctionStateTest {
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1940);
+    }
+
+    @Test
+    void publish_opening_price_event_with_new_order() {
+        security.setMatchingState(MatchingState.AUCTION);
+        orderHandler.handleEnterOrder(EnterOrderRq.createNewOrderRq(1, "ABC", 11, LocalDateTime.now(), Side.BUY, 5, 15000, broker2.getBrokerId(), shareholder.getShareholderId(), 0, 0));
+        ArgumentCaptor<OpeningPriceEvent> openingPriceEventCaptor = ArgumentCaptor.forClass(OpeningPriceEvent.class);
+        verify(eventPublisher).publish(openingPriceEventCaptor.capture());
+        OpeningPriceEvent outputEvent = openingPriceEventCaptor.getValue();
+        assertThat(outputEvent.getSecurityIsin()).isEqualTo("ABC");
+        assertThat(outputEvent.getOpeningPrice()).isEqualTo(15450);
+        assertThat(outputEvent.getTradableQuantity()).isEqualTo(1840);
     }
 }
