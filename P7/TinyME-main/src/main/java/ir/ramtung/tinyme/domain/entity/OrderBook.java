@@ -166,10 +166,10 @@ public class OrderBook {
     }
 
     public int findMaxSellQueuePrice() {
-        return sellQueue.stream().mapToInt(Order::getPrice).min().orElse(Integer.MIN_VALUE);
+        return sellQueue.stream().mapToInt(Order::getPrice).max().orElse(Integer.MIN_VALUE);
     }
 
     public int findMinBuyQueuePrice() {
-        return sellQueue.stream().mapToInt(Order::getPrice).max().orElse(Integer.MAX_VALUE);
+        return buyQueue.stream().mapToInt(Order::getPrice).min().orElse(Integer.MAX_VALUE);
     }
 }

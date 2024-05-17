@@ -3,6 +3,7 @@ package ir.ramtung.tinyme.domain;
 import ir.ramtung.tinyme.config.MockedJMSTestConfig;
 import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
+import ir.ramtung.tinyme.domain.service.AuctionMatcher;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
 import ir.ramtung.tinyme.messaging.event.*;
@@ -23,8 +24,10 @@ import org.mockito.ArgumentCaptor;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.LinkedList;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 
 @SpringBootTest
@@ -81,6 +84,7 @@ class AuctionStateTest {
         );
         orders.forEach(order -> orderBook.enqueue(order));
     }
+
 
     @Test
     void change_state_from_continuous_to_auction_successful() {
@@ -181,4 +185,241 @@ class AuctionStateTest {
         assertThat(broker1.getCredit()).isEqualTo(153_300);
         assertThat(orderBook.getBuyQueue().get(4).getPrice()).isEqualTo(15000);
     }
+
+
+    @Test
+    void findTradableQuantityIfTotalOfBuyQueueIsLower() {
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
+        security.setLastTradePrice(10000);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
+    }
+
+    @Test
+    void findTradableQuantityIfTotalOfSellQueueIsLower() {
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY, 1000, 15870, 0, broker2, shareholder, 0);
+        security.setLastTradePrice(10000);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2318);
+    }
+
+    @Test
+    void findTradableQuantityIfMaxSellQueuePriceIsMoreThanMinBuyQueuePrice() {
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY, 1200, 15470, 0, broker2, shareholder, 0);
+        security.setLastTradePrice(10000);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1971);
+    }
+
+    @Test
+    void findTradableQuantityIfMaxSellQueuePriceIsLowerThanMinBuyQueuePrice() {
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY, 1200, 15470, 0, broker2, shareholder, 0);
+        security.setLastTradePrice(10000);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1971);
+    }
+
+    @Test
+    void findTradableQuantityWithIcebergOrder() {
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new IcebergOrder(11, security, Side.BUY , 200, 15800 , 0 , broker2, shareholder, LocalDateTime.now() , 0 ,  100,  OrderStatus.QUEUED , 0);
+        security.setLastTradePrice(10000);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2040);
+    }
+
+    @Test
+    void findTradableQuantityWithNoOrderRequest(){
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY , 300, 15800 , 0 , broker2, shareholder, 0 );
+        security.setLastTradePrice(10000);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2140);
+        auctionMatcher.findOpeningPrice(security);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2140);
+    }
+
+    @Test
+    void findOpenPriceWhichOneCandidateClosestAndLowerToLastTradePrice(){
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
+        security.setLastTradePrice(15820);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
+    }
+
+    @Test
+    void findOpenPriceWhichTwoCandidateClosestToLastTradePrice(){
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        security.setLastTradePrice(10000);
+        LinkedList<Integer> prices = new LinkedList<>();
+        prices.add(10005);
+        prices.add(9995);
+        prices.add(9990);
+        prices.add(10010);
+        int bestOpenPrice = auctionMatcher.findClosestToLastTradePrice(prices, security);
+        assertThat(bestOpenPrice).isEqualTo(9995);
+    }
+
+    @Test
+    void addNewOrderButDontChangeOpenPrice(){
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
+        security.setLastTradePrice(15820);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
+        Order newOrder2 = new Order(12, security, Side.BUY, 3000, 15900, 0, broker2, shareholder, 0);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder2);
+        assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
+    }
+
+    @Test
+    void addNewOrderButDontChangeTradableQuantity(){
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
+        security.setLastTradePrice(10000);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
+        Order newOrder2 = new Order(12, security, Side.BUY, 300, 15400, 0, broker2, shareholder, 0);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder2);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
+    }
+
+    @Test
+    void addNewOrderChangeTradableQuantityButDontChangeOpenPrice(){
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
+        security.setLastTradePrice(15820);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2140);
+        Order newOrder2 = new Order(12, security, Side.BUY, 360, 15900, 0, broker2, shareholder, 0);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder2);
+        assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2318);
+    }
+
+    @Test
+    void addNewOrderChangeOpenPriceButDontChangeTradableQuantity(){
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
+        security.setLastTradePrice(10000);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
+        assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15450);
+        Order newOrder2 = new Order(12, security, Side.SELL, 1000, 15440, 0, broker2, shareholder, 0);
+        auctionMatcher.updateOpeningPriceWithNewOrder(newOrder2);
+        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
+        assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15440);
+    }
+
+    @Test
+    void adding_minimum_execution_quantity_for_buy_order_in_auction_state_successfully_rejected() {
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(5);
+        orderHandler.handleChangeMatchingState(new ChangeMatchingStateRq("ABC", MatchingState.AUCTION));
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, "ABC", 100,
+                LocalDateTime.now(), Side.BUY, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(),
+                0, 10, 0, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.INVALID_ORDER_IN_AUCTION_STATE))));
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(5);
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+    }
+
+    @Test
+    void adding_minimum_execution_quantity_for_sell_order_in_auction_state_successfully_rejected() {
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(5);
+        orderHandler.handleChangeMatchingState(new ChangeMatchingStateRq("ABC", MatchingState.AUCTION));
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, "ABC", 100,
+                LocalDateTime.now(), Side.SELL, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(),
+                0, 10, 0, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.INVALID_ORDER_IN_AUCTION_STATE))));
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(5);
+    }
+
+    @Test
+    void adding_stop_limit_order_for_buy_order_in_auction_state_successfully_rejected() {
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(5);
+        orderHandler.handleChangeMatchingState(new ChangeMatchingStateRq("ABC", MatchingState.AUCTION));
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, "ABC", 100,
+                LocalDateTime.now(), Side.BUY, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(),
+                0, 0, 100, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.INVALID_ORDER_IN_AUCTION_STATE))));
+        assertThat(security.getOrderBook().getBuyQueue().size()).isEqualTo(5);
+        assertThat(security.getOrderBook().getInactiveBuyQueue().size()).isEqualTo(0);
+        assertThat(broker1.getCredit()).isEqualTo(100_000);
+    }
+
+    @Test
+    void adding_stop_limit_order_for_sell_order_in_auction_state_successfully_rejected() {
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(5);
+        orderHandler.handleChangeMatchingState(new ChangeMatchingStateRq("ABC", MatchingState.AUCTION));
+        EnterOrderRq enterOrderRq = EnterOrderRq.createNewOrderRq(1, "ABC", 100,
+                LocalDateTime.now(), Side.SELL, 40, 500, broker1.getBrokerId(), shareholder.getShareholderId(),
+                0, 0, 100, true);
+        orderHandler.handleEnterOrder(enterOrderRq);
+        verify(eventPublisher).publish((new OrderRejectedEvent(1, 100, List.of(Message.INVALID_ORDER_IN_AUCTION_STATE))));
+        assertThat(security.getOrderBook().getSellQueue().size()).isEqualTo(5);
+        assertThat(security.getOrderBook().getInactiveSellQueue().size()).isEqualTo(0);
+    }
+
+    @Test
+    void update_price_for_sell_order_in_auction_state_successfully_done() {
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        security.setMatchingState(MatchingState.AUCTION);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(5, "ABC", 5,
+                LocalDateTime.now(), Side.SELL, 1000, 16000, broker2.getBrokerId(), shareholder.getShareholderId(),
+                0, 0, 0, false));
+        assertThat(broker2.getCredit()).isEqualTo(100_000);
+        assertThat(orderBook.getSellQueue().get(4).getPrice()).isEqualTo(16000);
+        int openPrice = auctionMatcher.findOpeningPrice(security);
+        assertThat(openPrice).isEqualTo(15800);
+    }
+
+    @Test
+    void update_price_for_buy_order_in_auction_state_successfully_done() {
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        security.setMatchingState(MatchingState.AUCTION);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(5, "ABC", 10,
+                LocalDateTime.now(), Side.BUY, 65, 15000, broker1.getBrokerId(), shareholder.getShareholderId(),
+                0, 0, 0, false));
+        assertThat(broker1.getCredit()).isEqualTo(153_300);
+        assertThat(orderBook.getBuyQueue().get(4).getPrice()).isEqualTo(15000);
+        int openPrice = auctionMatcher.findOpeningPrice(security);
+        assertThat(openPrice).isEqualTo(15450);
+    }
+
+    @Test
+    void update_quantity_for_sell_order_in_auction_state_successfully_done() {
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        security.setMatchingState(MatchingState.AUCTION);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(5, "ABC", 5,
+                LocalDateTime.now(), Side.SELL, 100, 15400, broker2.getBrokerId(), shareholder.getShareholderId(),
+                0, 0, 0, false));
+        assertThat(broker2.getCredit()).isEqualTo(100_000);
+        assertThat(orderBook.getSellQueue().get(0).getQuantity()).isEqualTo(100);
+        int openPrice = auctionMatcher.findOpeningPrice(security);
+        assertThat(openPrice).isEqualTo(15700);
+    }
+
+    @Test
+    void update_quantity_for_buy_order_in_auction_state_successfully_done() {
+        AuctionMatcher auctionMatcher = new AuctionMatcher();
+        security.setMatchingState(MatchingState.AUCTION);
+        orderHandler.handleEnterOrder(EnterOrderRq.createUpdateOrderRq(5, "ABC", 10,
+                LocalDateTime.now(), Side.BUY, 55, 15820, broker1.getBrokerId(), shareholder.getShareholderId(),
+                0, 0, 0, false));
+        assertThat(broker1.getCredit()).isEqualTo(258200);
+        assertThat(orderBook.getBuyQueue().get(1).getQuantity()).isEqualTo(55);
+        int openPrice = auctionMatcher.findOpeningPrice(security);
+        assertThat(openPrice).isEqualTo(15700);
+    }
+
+
 }

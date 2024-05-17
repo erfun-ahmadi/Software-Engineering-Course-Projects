@@ -80,7 +80,7 @@ public class AuctionMatcher {
         return MatchResult.openingPriceHasBeenSet(order.getSecurity().getIsin(), openingPrice, tradableQuantity);
     }
 
-    private int findOpeningPrice(Security security) {
+    public int findOpeningPrice(Security security) {
         int maxLimit = security.getOrderBook().findMaxSellQueuePrice();
         int minLimit = security.getOrderBook().findMinBuyQueuePrice();
         if (maxLimit < minLimit) {
@@ -155,7 +155,7 @@ public class AuctionMatcher {
         return orders.stream().mapToInt(Order::getTotalQuantity).sum();
     }
 
-    private int findClosestToLastTradePrice(LinkedList<Integer> prices, Security security) {
+    public int findClosestToLastTradePrice(LinkedList<Integer> prices, Security security) {
         int minDistance = Integer.MAX_VALUE;
         int minElement = Integer.MAX_VALUE;
         int lastTradePrice = security.getLastTradePrice();
@@ -169,4 +169,6 @@ public class AuctionMatcher {
         }
         return minElement;
     }
+
+
 }
