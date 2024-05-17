@@ -15,7 +15,6 @@ import lombok.Setter;
 import java.util.LinkedList;
 import java.util.List;
 
-@Setter
 @Getter
 @Builder
 public class Security {
@@ -29,6 +28,7 @@ public class Security {
     @Setter
     private int lastTradePrice;
     @Builder.Default
+    @Setter
     private MatchingState matchingState = MatchingState.CONTINUOUS;
 
     public LinkedList<Trade> changeState(ChangeMatchingStateRq changeMatchingStateRq, AuctionMatcher auctionMatcher) {
