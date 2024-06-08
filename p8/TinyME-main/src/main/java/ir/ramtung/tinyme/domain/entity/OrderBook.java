@@ -139,6 +139,27 @@ public class OrderBook {
 
     public List<Order> activateOrder() {
         List<Order> activatedOrders = new LinkedList<>();
+        activateBuyOrder(activatedOrders);
+        activateSellOrder(activatedOrders);
+        return activatedOrders;
+    }
+
+    private void activateSellOrder(List<Order> activatedOrders) {
+        ListIterator<Order> it;
+        it = inactiveSellQueue.listIterator();
+        while (it.hasNext()) {
+            Order order = it.next();
+            if (order.getSide() == Side.SELL && order.shouldActivate()) {
+                removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
+                enqueueInActiveQueue(order);
+                order.activate();
+                it = inactiveSellQueue.listIterator();
+                activatedOrders.add(order);
+            }
+        }
+    }
+
+    private void activateBuyOrder(List<Order> activatedOrders) {
         var it = inactiveBuyQueue.listIterator();
         while (it.hasNext()) {
             Order order = it.next();
@@ -151,18 +172,6 @@ public class OrderBook {
                 activatedOrders.add(order);
             }
         }
-        it = inactiveSellQueue.listIterator();
-        while (it.hasNext()) {
-            Order order = it.next();
-            if (order.getSide() == Side.SELL && order.shouldActivate()) {
-                removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
-                enqueueInActiveQueue(order);
-                order.activate();
-                it = inactiveSellQueue.listIterator();
-                activatedOrders.add(order);
-            }
-        }
-        return activatedOrders;
     }
 
     public int findMaxSellQueuePrice() {
