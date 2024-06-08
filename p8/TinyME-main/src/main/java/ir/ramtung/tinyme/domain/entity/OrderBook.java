@@ -2,9 +2,7 @@ package ir.ramtung.tinyme.domain.entity;
 
 import lombok.Getter;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.*;
 
 @Getter
 public class OrderBook {
@@ -14,12 +12,27 @@ public class OrderBook {
     private final LinkedList<Order> inactiveSellQueue;
     public final LinkedList<Order> activeQueue;
 
+    private final Map<Side, Map<Boolean, LinkedList<Order>>> queues;
+
     public OrderBook() {
         buyQueue = new LinkedList<>();
         sellQueue = new LinkedList<>();
         inactiveBuyQueue = new LinkedList<>();
         inactiveSellQueue = new LinkedList<>();
         activeQueue = new LinkedList<>();
+
+        queues = new HashMap<>();
+
+        Map<Boolean, LinkedList<Order>> buyMap = new HashMap<>();
+        buyMap.put(Boolean.FALSE, buyQueue);
+        buyMap.put(Boolean.TRUE, inactiveBuyQueue);
+
+        Map<Boolean, LinkedList<Order>> sellMap = new HashMap<>();
+        sellMap.put(Boolean.FALSE, sellQueue);
+        sellMap.put(Boolean.TRUE, inactiveSellQueue);
+
+        queues.put(Side.BUY, buyMap);
+        queues.put(Side.SELL, sellMap);
     }
 
     public void enqueue(Order order) {
@@ -36,16 +49,7 @@ public class OrderBook {
     }
 
     private LinkedList<Order> getQueue(Side side, boolean inactive) {
-        if (side == Side.BUY && !inactive) {
-            return buyQueue;
-        } else if (side == Side.SELL && !inactive) {
-            return sellQueue;
-        } else if (side == Side.BUY) {
-            return inactiveBuyQueue;
-        } else if (side == Side.SELL) {
-            return inactiveSellQueue;
-        }
-        return null;
+        return queues.get(side).get(inactive);
     }
 
     public void enqueueInActiveQueue(Order order) {
