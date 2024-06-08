@@ -27,6 +27,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.LinkedList;
 
+import static ir.ramtung.tinyme.domain.entity.Side.BUY;
+import static ir.ramtung.tinyme.domain.entity.Side.SELL;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 
@@ -73,16 +75,36 @@ class AuctionStateTest {
         auctionMatcher = new AuctionMatcher();
 
         List<Order> orders = Arrays.asList(
-                new Order(1, security, Side.SELL, 304, 15700, 0, broker1, shareholder, 0),
-                new Order(2, security, Side.SELL, 43, 15500, 0, broker1, shareholder, 0),
-                new Order(3, security, Side.SELL, 445, 15450, 0, broker2, shareholder, 0),
-                new Order(4, security, Side.SELL, 526, 15450, 0, broker2, shareholder, 0),
-                new Order(5, security, Side.SELL, 1000, 15400, 0, broker2, shareholder, 0),
-                new Order(6, security, Side.BUY, 350, 15800, 0, broker2, shareholder, 0),
-                new Order(7, security, Side.BUY, 285, 15810, 0, broker2, shareholder, 0),
-                new Order(8, security, Side.BUY, 800, 15810, 0, broker1, shareholder, 0),
-                new Order(9, security, Side.BUY, 340, 15820, 0, broker1, shareholder, 0),
-                new Order(10, security, Side.BUY, 65, 15820, 0, broker1, shareholder, 0)
+                Order.builder().orderId(1).security(security).side(SELL).quantity(304).price(15700).
+                        minimumExecutionQuantity(0).broker(broker1).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(2).security(security).side(SELL).quantity(43).price(15500).
+                        minimumExecutionQuantity(0).broker(broker1).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(3).security(security).side(SELL).quantity(445).price(15450).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(4).security(security).side(SELL).quantity(526).price(15450).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(5).security(security).side(SELL).quantity(1000).price(15400).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(6).security(security).side(BUY).quantity(350).price(15800).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(7).security(security).side(BUY).quantity(285).price(15810).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(8).security(security).side(BUY).quantity(800).price(15810).
+                        minimumExecutionQuantity(0).broker(broker1).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(9).security(security).side(BUY).quantity(340).price(15820).
+                        minimumExecutionQuantity(0).broker(broker1).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(10).security(security).side(BUY).quantity(65).price(15820).
+                        minimumExecutionQuantity(0).broker(broker1).
+                        shareholder(shareholder).stopPrice(0).build()
         );
         orders.forEach(order -> orderBook.enqueue(order));
     }
@@ -194,7 +216,9 @@ class AuctionStateTest {
 
     @Test
     void calculating_tradable_quantity_if_total_of_buy_queue_is_lower_successful() {
-        Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(300).price(15420).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
@@ -202,7 +226,9 @@ class AuctionStateTest {
 
     @Test
     void calculating_tradable_quantity_if_total_of_sell_queue_is_lower_successful() {
-        Order newOrder = new Order(11, security, Side.BUY, 1000, 15870, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(1000).price(15870).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2318);
@@ -210,7 +236,9 @@ class AuctionStateTest {
 
     @Test
     void calculating_tradable_quantity_if_max_sell_queue_price_is_more_than_min_buy_queue_price_successful() {
-        Order newOrder = new Order(11, security, Side.BUY, 1200, 15470, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(1200).price(15470).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1971);
@@ -218,7 +246,9 @@ class AuctionStateTest {
 
     @Test
     void calculating_tradable_quantity_if_max_sell_queue_price_is_less_than_min_buy_queue_price_successful() {
-        Order newOrder = new Order(11, security, Side.BUY, 1200, 15470, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(1200).price(15470).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1971);
@@ -226,7 +256,9 @@ class AuctionStateTest {
 
     @Test
     void calculating_tradable_quantity_with_iceberg_order_successful() {
-        Order newOrder = new IcebergOrder(11, security, Side.BUY, 200, 15800, 0, broker2, shareholder, LocalDateTime.now(), 0, 100, OrderStatus.QUEUED, 0);
+        Order newOrder = IcebergOrder.builder().orderId(11).security(security).side(BUY).quantity(200).price(15800).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).entryTime(LocalDateTime.now()).peakSize(0).displayedQuantity(100).status(OrderStatus.QUEUED).stopPrice(0).build();
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2040);
@@ -234,7 +266,9 @@ class AuctionStateTest {
 
     @Test
     void calculating_tradable_quantity_with_no_order_request_successful() {
-        Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(300).price(15800).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2140);
@@ -244,7 +278,9 @@ class AuctionStateTest {
 
     @Test
     void calculating_open_price_with_one_candidate_closest_and_lower_to_last_trade_price_successful() {
-        Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(300).price(15800).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(15820);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
@@ -260,34 +296,46 @@ class AuctionStateTest {
 
     @Test
     void adding_new_order_that_does_not_change_open_price() {
-        Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(300).price(15800).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(15820);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
-        Order newOrder2 = new Order(12, security, Side.BUY, 3000, 15900, 0, broker2, shareholder, 0);
+        Order newOrder2 = Order.builder().orderId(12).security(security).side(BUY).quantity(3000).price(15900).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder2);
         assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
     }
 
     @Test
     void adding_new_order_that_does_not_change_tradable_quantity() {
-        Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(300).price(15420).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
-        Order newOrder2 = new Order(12, security, Side.BUY, 300, 15400, 0, broker2, shareholder, 0);
+        Order newOrder2 = Order.builder().orderId(12).security(security).side(BUY).quantity(300).price(15400).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder2);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
     }
 
     @Test
     void adding_new_order_that_changes_tradable_quantity_but_does_not_change_open_price() {
-        Order newOrder = new Order(11, security, Side.BUY, 300, 15800, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(300).price(15800).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(15820);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2140);
-        Order newOrder2 = new Order(12, security, Side.BUY, 360, 15900, 0, broker2, shareholder, 0);
+        Order newOrder2 = Order.builder().orderId(12).security(security).side(BUY).quantity(360).price(15900).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder2);
         assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2318);
@@ -295,12 +343,16 @@ class AuctionStateTest {
 
     @Test
     void adding_new_order_that_changes_open_price_but_does_not_change_tradable_quantity() {
-        Order newOrder = new Order(11, security, Side.BUY, 300, 15420, 0, broker2, shareholder, 0);
+        Order newOrder = Order.builder().orderId(11).security(security).side(BUY).quantity(300).price(15420).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
         assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15450);
-        Order newOrder2 = new Order(12, security, Side.SELL, 1000, 15440, 0, broker2, shareholder, 0);
+        Order newOrder2 = Order.builder().orderId(12).security(security).side(SELL).quantity(1000).price(15440).
+                minimumExecutionQuantity(0).broker(broker2).
+                shareholder(shareholder).stopPrice(0).build();
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder2);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
         assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15440);
@@ -360,7 +412,9 @@ class AuctionStateTest {
         int firstOpeningPrice = auctionMatcher.findOpeningPrice(security);
         assertThat(firstOpeningPrice).isEqualTo(15700);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
-        Order newOrder = new Order(100, security, Side.BUY, 100, 15840, 0, broker1, shareholder, LocalDateTime.now(), OrderStatus.NEW, 15890, false);
+        Order newOrder = Order.builder().orderId(100).security(security).side(BUY).quantity(100).price(15840).
+                minimumExecutionQuantity(0).broker(broker1).shareholder(shareholder).
+                entryTime(LocalDateTime.now()).status(OrderStatus.NEW).stopPrice(15890).inactive(false).build();
         security.setLastTradePrice(15900);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getOpeningPrice()).isEqualTo(15800);
@@ -384,8 +438,12 @@ class AuctionStateTest {
         Security security1 = Security.builder().build();
         securityRepository.addSecurity(security1);
         List<Order> orders = Arrays.asList(
-                new Order(1, security1, Side.SELL, 304, 15700, 0, broker1, shareholder, 0),
-                new Order(6, security1, Side.BUY, 350, 15800, 0, broker2, shareholder, 0)
+                Order.builder().orderId(1).security(security1).side(SELL).quantity(304).price(15700).
+                        minimumExecutionQuantity(0).broker(broker1).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(6).security(security1).side(BUY).quantity(350).price(15800).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build()
         );
         orders.forEach(order -> security1.getOrderBook().enqueue(order));
         security1.setMatchingState(MatchingState.AUCTION);

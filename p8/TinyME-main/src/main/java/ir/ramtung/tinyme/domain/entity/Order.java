@@ -5,13 +5,15 @@ import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
-@Builder
+
 @EqualsAndHashCode
 @ToString
 @Getter
+@SuperBuilder
 public class Order {
     protected long orderId;
     protected Security security;
@@ -28,66 +30,21 @@ public class Order {
     protected int stopPrice;
     protected boolean inactive;
 
-    public Order(long orderId, Security security, Side side, int quantity, int price, int minimumExecutionQuantity, Broker broker, Shareholder shareholder, LocalDateTime entryTime, OrderStatus status, int stopPrice, boolean inactive) {
-        this.orderId = orderId;
-        this.security = security;
-        this.side = side;
-        this.quantity = quantity;
-        this.price = price;
-        this.minimumExecutionQuantity = minimumExecutionQuantity;
-        this.entryTime = entryTime;
-        this.broker = broker;
-        this.shareholder = shareholder;
-        this.status = status;
-        this.stopPrice = stopPrice;
-        this.inactive = inactive;
-    }
-
-    public Order(long orderId, Security security, Side side, int quantity, int price, int minimumExecutionQuantity, Broker broker, Shareholder shareholder, LocalDateTime entryTime, OrderStatus status, int stopPrice) {
-        this.orderId = orderId;
-        this.security = security;
-        this.side = side;
-        this.quantity = quantity;
-        this.price = price;
-        this.minimumExecutionQuantity = minimumExecutionQuantity;
-        this.entryTime = entryTime;
-        this.broker = broker;
-        this.shareholder = shareholder;
-        this.status = status;
-        this.stopPrice = stopPrice;
-        this.inactive = stopPrice > 0;
-    }
-
-    public Order(long orderId, Security security, Side side, int quantity, int price, int minimumExecutionQuantity, Broker broker, Shareholder shareholder, LocalDateTime entryTime, int stopPrice) {
-        this.orderId = orderId;
-        this.security = security;
-        this.side = side;
-        this.quantity = quantity;
-        this.price = price;
-        this.minimumExecutionQuantity = minimumExecutionQuantity;
-        this.entryTime = entryTime;
-        this.broker = broker;
-        this.shareholder = shareholder;
-        this.status = OrderStatus.NEW;
-        this.stopPrice = stopPrice;
-        this.inactive = stopPrice > 0;
-    }
-
-    public Order(long orderId, Security security, Side side, int quantity, int price, int minimumExecutionQuantity, Broker broker, Shareholder shareholder, int stopPrice) {
-        this(orderId, security, side, quantity, price, minimumExecutionQuantity, broker, shareholder, LocalDateTime.now(), stopPrice);
-    }
-
     public boolean shouldActivate() {
         return (stopPrice != 0 && side == Side.BUY && stopPrice <= security.getLastTradePrice()) ||
                 (stopPrice != 0 && side== Side.SELL && stopPrice >= security.getLastTradePrice());
     }
 
     public Order snapshot() {
-        return new Order(orderId, security, side, quantity, price, minimumExecutionQuantity, broker, shareholder, entryTime, OrderStatus.SNAPSHOT, stopPrice);
+        return Order.builder().orderId(orderId).security(security).side(side).quantity(quantity).price(price).
+                minimumExecutionQuantity(minimumExecutionQuantity).broker(broker).
+                shareholder(shareholder).entryTime(entryTime).status(OrderStatus.SNAPSHOT).stopPrice(stopPrice).build();
     }
 
     public Order snapshotWithQuantity(int newQuantity) {
-        return new Order(orderId, security, side, newQuantity, price, minimumExecutionQuantity, broker, shareholder, entryTime, OrderStatus.SNAPSHOT, stopPrice);
+        return Order.builder().orderId(orderId).security(security).side(side).quantity(newQuantity).price(price).
+                minimumExecutionQuantity(minimumExecutionQuantity).broker(broker).
+                shareholder(shareholder).entryTime(entryTime).status(OrderStatus.SNAPSHOT).stopPrice(stopPrice).build();
     }
 
     public boolean matches(Order other) {

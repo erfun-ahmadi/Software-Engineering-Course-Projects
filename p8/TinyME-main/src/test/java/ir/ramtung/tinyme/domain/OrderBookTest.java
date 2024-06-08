@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 
+import static ir.ramtung.tinyme.domain.entity.Side.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class OrderBookTest {
@@ -19,16 +20,36 @@ class OrderBookTest {
         Shareholder shareholder = Shareholder.builder().build();
         shareholder.incPosition(security, 100_000);
         orders = Arrays.asList(
-                new Order(1, security, Side.BUY, 304, 15700, 0, broker, shareholder, 0),
-                new Order(2, security, Side.BUY, 43, 15500, 0, broker, shareholder, 0),
-                new Order(3, security, Side.BUY, 445, 15450, 0, broker, shareholder, 0),
-                new Order(4, security, Side.BUY, 526, 15450, 0, broker, shareholder, 0),
-                new Order(5, security, Side.BUY, 1000, 15400, 0, broker, shareholder, 0),
-                new Order(6, security, Side.SELL, 350, 15800, 0, broker, shareholder, 0),
-                new Order(7, security, Side.SELL, 285, 15810, 0, broker, shareholder, 0),
-                new Order(8, security, Side.SELL, 800, 15810, 0, broker, shareholder, 0),
-                new Order(9, security, Side.SELL, 340, 15820, 0, broker, shareholder, 0),
-                new Order(10, security, Side.SELL, 65, 15820, 0, broker, shareholder, 0)
+                Order.builder().orderId(1).security(security).side(BUY).quantity(304).price(15700).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(2).security(security).side(BUY).quantity(43).price(15500).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(3).security(security).side(BUY).quantity(445).price(15450).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(4).security(security).side(BUY).quantity(526).price(15450).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(5).security(security).side(BUY).quantity(1000).price(15400).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(6).security(security).side(Side.SELL).quantity(350).price(15800).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(7).security(security).side(Side.SELL).quantity(285).price(15810).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(8).security(security).side(Side.SELL).quantity(800).price(15810).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(9).security(security).side(Side.SELL).quantity(340).price(15820).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(10).security(security).side(Side.SELL).quantity(65).price(15820).
+                        minimumExecutionQuantity(0).broker(broker).
+                        shareholder(shareholder).stopPrice(0).build()
         );
         orders.forEach(order -> security.getOrderBook().enqueue(order));
     }

@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
+import static ir.ramtung.tinyme.domain.entity.Side.BUY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 
@@ -64,9 +65,15 @@ public class OrderHandlerCreditCheckRollbackTest {
         brokerRepository.addBroker(broker3);
         OrderBook orderBook = security.getOrderBook();
         List<Order> orders = Arrays.asList(
-                new Order(100, security, Side.SELL, 30, 500, 0, broker1, shareholder, 0),
-                new Order(110, security, Side.SELL, 20, 500, 0, broker2, shareholder, 0),
-                new Order(120, security, Side.SELL, 20, 600, 0, broker2, shareholder, 0)
+                Order.builder().orderId(100).security(security).side(Side.SELL).quantity(30).price(500).
+                        minimumExecutionQuantity(0).broker(broker1).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(110).security(security).side(Side.SELL).quantity(20).price(500).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(120).security(security).side(Side.SELL).quantity(20).price(600).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build()
         );
         orders.forEach(orderBook::enqueue);
 
@@ -98,9 +105,15 @@ public class OrderHandlerCreditCheckRollbackTest {
         brokerRepository.addBroker(broker3);
         OrderBook orderBook = security.getOrderBook();
         List<Order> orders = Arrays.asList(
-                new IcebergOrder(1, security, Side.SELL, 45, 1545, 0, broker1, shareholder, 200, 0),
-                new Order(2, security, Side.SELL, 7, 1545, 0, broker2, shareholder, 0),
-                new Order(3, security, Side.SELL, 10, 1550, 0, broker2, shareholder, 0)
+                IcebergOrder.builder().orderId(1).security(security).side(Side.SELL).quantity(45).price(1545).
+                        minimumExecutionQuantity(0).broker(broker1).
+                        shareholder(shareholder).peakSize(200).stopPrice(0).build(),
+                Order.builder().orderId(2).security(security).side(Side.SELL).quantity(7).price(1545).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(3).security(security).side(Side.SELL).quantity(10).price(1550).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build()
         );
         orders.forEach(orderBook::enqueue);
 
@@ -132,10 +145,18 @@ public class OrderHandlerCreditCheckRollbackTest {
         brokerRepository.addBroker(broker3);
         OrderBook orderBook = security.getOrderBook();
         List<Order> orders = Arrays.asList(
-                new IcebergOrder(1, security, Side.SELL, 45, 1545, 0, broker1, shareholder, 200, 0),
-                new Order(2, security, Side.SELL, 7, 1545, 0, broker2, shareholder, 0),
-                new Order(3, security, Side.SELL, 10, 1550, 0, broker2, shareholder, 0),
-                new Order(4, security, Side.BUY, 60, 1540, 0, broker3, shareholder, 0)
+                IcebergOrder.builder().orderId(1).security(security).side(Side.SELL).quantity(45).price(1545).
+                        minimumExecutionQuantity(0).broker(broker1).
+                        shareholder(shareholder).peakSize(200).stopPrice(0).build(),
+                Order.builder().orderId(2).security(security).side(Side.SELL).quantity(7).price(1545).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(3).security(security).side(Side.SELL).quantity(10).price(1550).
+                        minimumExecutionQuantity(0).broker(broker2).
+                        shareholder(shareholder).stopPrice(0).build(),
+                Order.builder().orderId(4).security(security).side(BUY).quantity(60).price(1540).
+                        minimumExecutionQuantity(0).broker(broker3).
+                        shareholder(shareholder).stopPrice(0).build()
         );
         orders.forEach(orderBook::enqueue);
 
