@@ -91,16 +91,15 @@ public class OrderBook {
         return null;
     }
 
-    public boolean removeByOrderId(Side side, long orderId, boolean inactive) {
+    public void removeByOrderId(Side side, long orderId, boolean inactive) {
         var queue = getQueue(side, inactive);
         var it = queue.listIterator();
         while (it.hasNext()) {
             if (it.next().getOrderId() == orderId) {
                 it.remove();
-                return true;
+                return;
             }
         }
-        return false;
     }
 
     public Order matchWithFirst(Order newOrder) {
