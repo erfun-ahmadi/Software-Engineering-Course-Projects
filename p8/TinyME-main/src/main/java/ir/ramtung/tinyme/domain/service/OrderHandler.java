@@ -58,44 +58,38 @@ public class OrderHandler {
                 matchResults = security.newOrder(enterOrderRq, broker, shareholder, continuousMatcher, auctionMatcher);
             else
                 matchResults = security.updateOrder(enterOrderRq, continuousMatcher, auctionMatcher);
-
             if (matchResults.isEmpty()) {
                 eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
                 return;
             }
 
             MatchResult matchResult = matchResults.getFirst();
-
-            if (matchResult.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT) {
+            if (matchResult.outcome() == MatchingOutcome.NOT_ENOUGH_CREDIT)
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.BUYER_HAS_NOT_ENOUGH_CREDIT)));
-                return;
-            }
-            if (matchResult.outcome() == MatchingOutcome.NOT_ENOUGH_POSITIONS) {
+            else if (matchResult.outcome() == MatchingOutcome.NOT_ENOUGH_POSITIONS)
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.SELLER_HAS_NOT_ENOUGH_POSITIONS)));
-                return;
-            }
-            if (matchResult.outcome() == MatchingOutcome.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER) {
+            else if (matchResult.outcome() == MatchingOutcome.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER)
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.NOT_ABLE_TO_CREATE_STOP_LIMIT_ORDER)));
-                return;
-            }
-            if (matchResult.outcome() == MatchingOutcome.INVALID_ORDER_IN_AUCTION_STATE) {
+            else if (matchResult.outcome() == MatchingOutcome.INVALID_ORDER_IN_AUCTION_STATE)
                 eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), List.of(Message.INVALID_ORDER_IN_AUCTION_STATE)));
-                return;
-            }
-            if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER || matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACCEPTED)
-                eventPublisher.publish(new OrderAcceptedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
             else
-                eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
-            if (!matchResult.trades().isEmpty()) {
-                eventPublisher.publish(new OrderExecutedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
-                matchResults.removeFirst();
-            }
-
-            publishMatchResultsWithMoreThanOneEvent(matchResults);
+                publishValidEvent(enterOrderRq, matchResult, matchResults);
 
         } catch (InvalidRequestException ex) {
             eventPublisher.publish(new OrderRejectedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), ex.getReasons()));
         }
+    }
+
+    private void publishValidEvent(EnterOrderRq enterOrderRq, MatchResult matchResult, LinkedList<MatchResult> matchResults) {
+        if (enterOrderRq.getRequestType() == OrderEntryType.NEW_ORDER || matchResult.outcome() == MatchingOutcome.STOP_LIMIT_ORDER_ACCEPTED)
+            eventPublisher.publish(new OrderAcceptedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
+        else
+            eventPublisher.publish(new OrderUpdatedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId()));
+        if (!matchResult.trades().isEmpty()) {
+            eventPublisher.publish(new OrderExecutedEvent(enterOrderRq.getRequestId(), enterOrderRq.getOrderId(), matchResult.trades().stream().map(TradeDTO::new).collect(Collectors.toList())));
+            matchResults.removeFirst();
+        }
+        publishMatchResultsWithMoreThanOneEvent(matchResults);
     }
 
     private void publishMatchResultsWithMoreThanOneEvent(LinkedList<MatchResult> matchResults) {
