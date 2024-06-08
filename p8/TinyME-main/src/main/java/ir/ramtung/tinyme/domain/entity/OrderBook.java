@@ -143,36 +143,23 @@ public class OrderBook {
 
     public List<Order> activateOrder() {
         List<Order> activatedOrders = new LinkedList<>();
-        activateBuyOrder(activatedOrders);
-        activateSellOrder(activatedOrders);
+        activateOrders(inactiveBuyQueue, activatedOrders);
+        activateOrders(inactiveSellQueue, activatedOrders);
         return activatedOrders;
     }
 
-    private void activateSellOrder(List<Order> activatedOrders) {
-        ListIterator<Order> it;
-        it = inactiveSellQueue.listIterator();
+    private void activateOrders(LinkedList<Order> queue, List<Order> activatedOrders) {
+        var it = queue.listIterator();
         while (it.hasNext()) {
             Order order = it.next();
-            if (order.getSide() == Side.SELL && order.shouldActivate()) {
+            if (order.shouldActivate()) {
                 removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
+                if (order.getSide() == Side.BUY) {
+                    order.getBroker().increaseCreditBy(order.getValue());
+                }
                 enqueueInActiveQueue(order);
                 order.activate();
-                it = inactiveSellQueue.listIterator();
-                activatedOrders.add(order);
-            }
-        }
-    }
-
-    private void activateBuyOrder(List<Order> activatedOrders) {
-        var it = inactiveBuyQueue.listIterator();
-        while (it.hasNext()) {
-            Order order = it.next();
-            if (order.getSide() == Side.BUY && order.shouldActivate()) {
-                removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
-                order.getBroker().increaseCreditBy(order.getValue());
-                enqueueInActiveQueue(order);
-                order.activate();
-                it = inactiveBuyQueue.listIterator();
+                it = queue.listIterator();
                 activatedOrders.add(order);
             }
         }
