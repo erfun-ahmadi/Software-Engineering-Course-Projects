@@ -8,37 +8,37 @@ import java.util.LinkedList;
 
 @Getter
 @Service
-public class executeOperations {
+public class AuctionExecute {
 
-    public LinkedList<Trade> match(Order order , int openingPrice) {
+    public LinkedList<Trade> match(Order order, int openingPrice) {
         OrderBook orderBook = order.getSecurity().getOrderBook();
         LinkedList<Trade> trades = new LinkedList<>();
         if (order.isProposedPriceGood(openingPrice)) {
-            increaseBuyerBrokersCredit(order , openingPrice);
+            increaseBuyerBrokersCredit(order, openingPrice);
             while (orderBook.hasOrderOfType(order.getSide().opposite()) && order.getQuantity() > 0) {
                 Order matchingOrder = orderBook.auctionMatchWithFirst(order, openingPrice);
                 if (matchingOrder == null)
                     break;
-                trades.add(applyTrade(order, matchingOrder , openingPrice));
+                trades.add(applyTrade(order, matchingOrder, openingPrice));
                 dequeueEmptyOrder(order, matchingOrder, orderBook);
             }
         }
         return trades;
     }
 
-    private void increaseBuyerBrokersCredit(Order order , int openingPrice) {
+    private void increaseBuyerBrokersCredit(Order order, int openingPrice) {
         if (order.getSide() == Side.BUY)
             order.getBroker().increaseCreditBy((long) Math.abs(order.getPrice() - openingPrice) * order.getQuantity());
     }
 
-    public LinkedList<Order> chooseSide(OrderBook orderBook , int openingPrice) {
+    public LinkedList<Order> chooseSide(OrderBook orderBook, int openingPrice) {
         if (findSumBuyQuantitiesThatCanBeTradedWithPrice(openingPrice, orderBook) > findSumSellQuantitiesThatCanBeTradedWithPrice(openingPrice, orderBook))
             return orderBook.getBuyQueue();
         else
             return orderBook.getSellQueue();
     }
 
-    private Trade applyTrade(Order order, Order matchingOrder , int openingPrice) {
+    private Trade applyTrade(Order order, Order matchingOrder, int openingPrice) {
         Trade trade = new Trade(order.getSecurity(), openingPrice, Math.min(order.getQuantity(), matchingOrder.getQuantity()),
                 order, matchingOrder);
         trade.increaseSellersCredit();
@@ -81,5 +81,3 @@ public class executeOperations {
         return sumSellQuantity;
     }
 }
-
-

@@ -17,12 +17,11 @@ public class AuctionMatcher {
     private int tradableQuantity;
 
     public LinkedList<Trade> execute(Security security) {
-        updateOpeningPriceWithNewOrderOperations uopwnoo = new updateOpeningPriceWithNewOrderOperations();
-        executeOperations exe = new executeOperations();
+        AuctionExecute exe = new AuctionExecute();
         LinkedList<Trade> trades = new LinkedList<>();
-        List<Integer> tradableQuantityOpenningPrice = uopwnoo.findOpeningPrice(security , tradableQuantity);
-        tradableQuantity = tradableQuantityOpenningPrice.get(0).intValue();
-        openingPrice = tradableQuantityOpenningPrice.get(1).intValue();
+        List<Integer> tradableQuantityOpeningPrice = new updateOpeningPrice().findOpeningPrice(security);
+        tradableQuantity = tradableQuantityOpeningPrice.get(0);
+        openingPrice = tradableQuantityOpeningPrice.get(1);
         LinkedList<Order> chosenSide = exe.chooseSide(security.getOrderBook() , openingPrice);
         for (Order order : chosenSide)
             trades.addAll(exe.match(order , openingPrice));
@@ -30,11 +29,10 @@ public class AuctionMatcher {
     }
 
     public MatchResult updateOpeningPriceWithNewOrder(Order order) {
-        updateOpeningPriceWithNewOrderOperations uopwnoo = new updateOpeningPriceWithNewOrderOperations();
         order.getSecurity().getOrderBook().enqueue(order);
-        List<Integer> tradableQuantityOpenningPrice = uopwnoo.findOpeningPrice(order.getSecurity() , tradableQuantity);
-        tradableQuantity = tradableQuantityOpenningPrice.get(0).intValue();
-        openingPrice = tradableQuantityOpenningPrice.get(1).intValue();
+        List<Integer> tradableQuantityOpeningPrice = new updateOpeningPrice().findOpeningPrice(order.getSecurity());
+        tradableQuantity = tradableQuantityOpeningPrice.get(0);
+        openingPrice = tradableQuantityOpeningPrice.get(1);
         return MatchResult.openingPriceHasBeenSet(order.getSecurity().getIsin(), openingPrice, tradableQuantity);
     }
 

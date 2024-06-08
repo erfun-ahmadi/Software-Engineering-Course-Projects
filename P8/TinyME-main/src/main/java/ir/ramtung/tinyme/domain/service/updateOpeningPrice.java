@@ -11,9 +11,9 @@ import java.util.List;
 
 @Getter
 @Service
-public class updateOpeningPriceWithNewOrderOperations {
+public class updateOpeningPrice {
 
-    public List<Integer> findOpeningPrice(Security security , int tradableQuantity) {
+    public List<Integer> findOpeningPrice(Security security) {
         int maxLimit = security.getOrderBook().findMaxSellQueuePrice();
         int minLimit = security.getOrderBook().findMinBuyQueuePrice();
         if (maxLimit < minLimit) {
@@ -21,10 +21,10 @@ public class updateOpeningPriceWithNewOrderOperations {
             maxLimit = minLimit;
             minLimit = temp;
         }
-        return findOpeningPriceInLimit(minLimit, maxLimit, security , tradableQuantity);
+        return findOpeningPriceInLimit(minLimit, maxLimit, security);
     }
 
-    private List<Integer> findOpeningPriceInLimit(int minLimit, int maxLimit, Security security , int tradableQuantity) {
+    private List<Integer> findOpeningPriceInLimit(int minLimit, int maxLimit, Security security) {
         int maxQuantityTraded = Integer.MIN_VALUE;
         LinkedList<Integer> openingPricesWithHighestQuantityTraded = new LinkedList<>();
         for (int i = minLimit; i <= maxLimit; i++) {
@@ -36,11 +36,11 @@ public class updateOpeningPriceWithNewOrderOperations {
             } else if (overallQuantityTraded == maxQuantityTraded)
                 openingPricesWithHighestQuantityTraded.add(i);
         }
-        tradableQuantity = maxQuantityTraded;
-        List<Integer> tradableQuantityOpenningPrice = new ArrayList<>();
-        tradableQuantityOpenningPrice.add(tradableQuantity);
-        tradableQuantityOpenningPrice.add(findClosestToLastTradePrice(openingPricesWithHighestQuantityTraded, security));
-        return tradableQuantityOpenningPrice;
+        int tradableQuantity = maxQuantityTraded;
+        List<Integer> tradableQuantityOpeningPrice = new ArrayList<>();
+        tradableQuantityOpeningPrice.add(tradableQuantity);
+        tradableQuantityOpeningPrice.add(findClosestToLastTradePrice(openingPricesWithHighestQuantityTraded, security));
+        return tradableQuantityOpeningPrice;
     }
 
     private int findSumQuantityThatCanBeTradedWithPrice(int openingPrice, OrderBook orderBook) {
@@ -87,5 +87,4 @@ public class updateOpeningPriceWithNewOrderOperations {
         }
         return minElement;
     }
-    
 }
