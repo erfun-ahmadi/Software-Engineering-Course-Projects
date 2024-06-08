@@ -67,43 +67,62 @@ public class Security {
 
     private LinkedList<MatchResult> newContinuousOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder, ContinuousMatcher continuousMatcher) {
         LinkedList<MatchResult> matchResults = new LinkedList<>();
-        Order order = null;
-        if (enterOrderRq.getPeakSize() == 0) {
-            order = Order.builder().orderId(enterOrderRq.getOrderId()).security(this).side(enterOrderRq.getSide()).
-                    quantity(enterOrderRq.getQuantity()).price(enterOrderRq.getPrice()).
-                    minimumExecutionQuantity(enterOrderRq.getMinimumExecutionQuantity()).broker(broker).
-                    shareholder(shareholder).entryTime(enterOrderRq.getEntryTime()).status(OrderStatus.NEW).
-                    stopPrice(enterOrderRq.getStopPrice()).inactive(enterOrderRq.getStopPrice() > 0).build();
-             if (enterOrderRq.getStopPrice() != 0 && enterOrderRq.getSide() == Side.BUY) {
-                if (broker.hasEnoughCredit(order.getValue())) {
-                    order.getBroker().decreaseCreditBy(order.getValue());
-                } else {
-                    matchResults.add(MatchResult.notEnoughCredit());
-                    return matchResults;
-                }
-            }
-        } else {
-            order = IcebergOrder.builder().orderId(enterOrderRq.getOrderId()).security(this).side(enterOrderRq.getSide()).
-                    quantity(enterOrderRq.getQuantity()).price(enterOrderRq.getPrice()).
-                    minimumExecutionQuantity(enterOrderRq.getMinimumExecutionQuantity()).broker(broker).
-                    shareholder(shareholder).entryTime(enterOrderRq.getEntryTime()).peakSize(enterOrderRq.getPeakSize()).
-                    stopPrice(enterOrderRq.getStopPrice()).inactive(enterOrderRq.getStopPrice() > 0).build();
+        Order order = buildOrder(enterOrderRq, broker, shareholder);
+        if (enterOrderRq.getPeakSize() == 0 && !checkCredit(order, broker, matchResults)) {
+            return matchResults;
         }
-        if (order.shouldActivate()) {
-            order.activate();
-            matchResults.add(MatchResult.stopLimitOrderAccepted());
-            matchResults.add(MatchResult.stopLimitOrderActivated(order));
-            if (order.getSide() == Side.BUY)
-                order.getBroker().increaseCreditBy(order.getValue());
-        } else if (order.getStopPrice() != 0) {
-            matchResults.add(MatchResult.stopLimitOrderAccepted());
-            orderBook.enqueue(order);
+        handleOrderActivation(order, matchResults);
+        if (!order.shouldActivate() && order.getStopPrice() != 0) {
             return matchResults;
         }
         continuousMatcher.clearMatchResults();
         matchResults.addAll(continuousMatcher.execute(order));
         return matchResults;
     }
+
+    private Order buildOrder(EnterOrderRq enterOrderRq, Broker broker, Shareholder shareholder) {
+        if (enterOrderRq.getPeakSize() == 0) {
+            return Order.builder().orderId(enterOrderRq.getOrderId()).security(this).side(enterOrderRq.getSide()).
+                    quantity(enterOrderRq.getQuantity()).price(enterOrderRq.getPrice()).
+                    minimumExecutionQuantity(enterOrderRq.getMinimumExecutionQuantity()).broker(broker).
+                    shareholder(shareholder).entryTime(enterOrderRq.getEntryTime()).status(OrderStatus.NEW).
+                    stopPrice(enterOrderRq.getStopPrice()).inactive(enterOrderRq.getStopPrice() > 0).build();
+        }
+        else {
+            return IcebergOrder.builder().orderId(enterOrderRq.getOrderId()).security(this).side(enterOrderRq.getSide()).
+                    quantity(enterOrderRq.getQuantity()).price(enterOrderRq.getPrice()).
+                    minimumExecutionQuantity(enterOrderRq.getMinimumExecutionQuantity()).broker(broker).
+                    shareholder(shareholder).entryTime(enterOrderRq.getEntryTime()).peakSize(enterOrderRq.getPeakSize()).
+                    stopPrice(enterOrderRq.getStopPrice()).inactive(enterOrderRq.getStopPrice() > 0).build();
+        }
+    }
+
+    private boolean checkCredit(Order order, Broker broker, LinkedList<MatchResult> matchResults) {
+        if (order.getStopPrice() != 0 && order.getSide() == Side.BUY) {
+            if (broker.hasEnoughCredit(order.getValue())) {
+                order.getBroker().decreaseCreditBy(order.getValue());
+            } else {
+                matchResults.add(MatchResult.notEnoughCredit());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void handleOrderActivation(Order order, LinkedList<MatchResult> matchResults) {
+        if (order.shouldActivate()) {
+            order.activate();
+            matchResults.add(MatchResult.stopLimitOrderAccepted());
+            matchResults.add(MatchResult.stopLimitOrderActivated(order));
+            if (order.getSide() == Side.BUY) {
+                order.getBroker().increaseCreditBy(order.getValue());
+            }
+        } else if (order.getStopPrice() != 0) {
+            matchResults.add(MatchResult.stopLimitOrderAccepted());
+            orderBook.enqueue(order);
+        }
+    }
+
 
     public void deleteOrder(DeleteOrderRq deleteOrderRq) throws InvalidRequestException {
         Order order = orderBook.findByOrderId(deleteOrderRq.getSide(), deleteOrderRq.getOrderId(), deleteOrderRq.isInactive());
@@ -152,47 +171,63 @@ public class Security {
     public LinkedList<MatchResult> updateOrderContinuous(EnterOrderRq updateOrderRq, Order order, ContinuousMatcher continuousMatcher) {
         LinkedList<MatchResult> matchResults = new LinkedList<>();
         if (updateOrderRq.getStopPrice() != 0) {
-            if ((updateOrderRq.getStopPrice() != order.getStopPrice()) || (updateOrderRq.getPrice() != order.getPrice()) || (updateOrderRq.getQuantity() != order.getQuantity())) {
-                orderBook.removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
-                if (order.getSide() == Side.BUY) {
-                    order.getBroker().increaseCreditBy(order.getValue());
-                    if (!order.getBroker().hasEnoughCredit(updateOrderRq.getValue())) {
-                        matchResults.add(MatchResult.notEnoughCredit());
-                        return matchResults;
-                    }
-                    order.getBroker().decreaseCreditBy(updateOrderRq.getValue());
-                }
-                order.updateInactiveOrder(updateOrderRq);
-                if (order.shouldActivate()) {
-                    order.activate();
-                    matchResults.add(MatchResult.stopLimitOrderActivated(order));
-                    continuousMatcher.clearMatchResults();
-                    matchResults.addAll(continuousMatcher.execute(order));
-                    return matchResults;
-                } else {
-                    orderBook.enqueue(order);
-                    return new LinkedList<>();
-                }
+            if ((updateOrderRq.getStopPrice() != order.getStopPrice()) ||
+                    (updateOrderRq.getPrice() != order.getPrice()) ||
+                    (updateOrderRq.getQuantity() != order.getQuantity())) {
+                return handleStopPriceChange(updateOrderRq, order, continuousMatcher, matchResults);
             }
         }
-        boolean losesPriority = order.isQuantityIncreased(updateOrderRq.getQuantity())
+        handleOrderPriorityAndUpdate(updateOrderRq, order, continuousMatcher, matchResults);
+        return matchResults;
+    }
+
+    private LinkedList<MatchResult> handleStopPriceChange(EnterOrderRq updateOrderRq, Order order, ContinuousMatcher continuousMatcher,
+                                                          LinkedList<MatchResult> matchResults) {
+        orderBook.removeByOrderId(order.getSide(), order.getOrderId(), order.isInactive());
+        if (order.getSide() == Side.BUY) {
+            order.getBroker().increaseCreditBy(order.getValue());
+            if (!order.getBroker().hasEnoughCredit(updateOrderRq.getValue())) {
+                matchResults.add(MatchResult.notEnoughCredit());
+                return matchResults;
+            }
+            order.getBroker().decreaseCreditBy(updateOrderRq.getValue());
+        }
+        order.updateInactiveOrder(updateOrderRq);
+        if (order.shouldActivate()) {
+            order.activate();
+            matchResults.add(MatchResult.stopLimitOrderActivated(order));
+            continuousMatcher.clearMatchResults();
+            matchResults.addAll(continuousMatcher.execute(order));
+            return matchResults;
+        } else {
+            orderBook.enqueue(order);
+            return new LinkedList<>();
+        }
+    }
+
+    private boolean checkPriorityLoss(Order order, EnterOrderRq updateOrderRq) {
+        return order.isQuantityIncreased(updateOrderRq.getQuantity())
                 || updateOrderRq.getPrice() != order.getPrice()
                 || ((order instanceof IcebergOrder icebergOrder) && (icebergOrder.getPeakSize() < updateOrderRq.getPeakSize()));
+    }
 
+    private void handleOrderPriorityAndUpdate(EnterOrderRq updateOrderRq, Order order, ContinuousMatcher continuousMatcher,
+                                              LinkedList<MatchResult> matchResults) {
+        boolean losesPriority = checkPriorityLoss(order, updateOrderRq);
         if (updateOrderRq.getSide() == Side.BUY) {
             order.getBroker().increaseCreditBy(order.getValue());
         }
         Order originalOrder = order.snapshot();
         order.updateFromRequest(updateOrderRq);
         if (!losesPriority) {
-            if (updateOrderRq.getSide() == Side.BUY) {
-                order.getBroker().decreaseCreditBy(order.getValue());
-            }
-            matchResults.add(MatchResult.executed(null, List.of()));
-            return matchResults;
-        } else
-            order.markAsNew();
+            priorityLoss(updateOrderRq, order, matchResults);
+        } else {
+            noPriorityLoss(updateOrderRq, order, continuousMatcher, matchResults, originalOrder);
+        }
+    }
 
+    private void noPriorityLoss(EnterOrderRq updateOrderRq, Order order, ContinuousMatcher continuousMatcher, LinkedList<MatchResult> matchResults, Order originalOrder) {
+        order.markAsNew();
         orderBook.removeByOrderId(updateOrderRq.getSide(), updateOrderRq.getOrderId(), updateOrderRq.isInactive());
         continuousMatcher.clearMatchResults();
         matchResults.addAll(continuousMatcher.execute(order));
@@ -202,6 +237,13 @@ public class Security {
                 originalOrder.getBroker().decreaseCreditBy(originalOrder.getValue());
             }
         }
-        return matchResults;
     }
+
+    private static void priorityLoss(EnterOrderRq updateOrderRq, Order order, LinkedList<MatchResult> matchResults) {
+        if (updateOrderRq.getSide() == Side.BUY) {
+            order.getBroker().decreaseCreditBy(order.getValue());
+        }
+        matchResults.add(MatchResult.executed(null, List.of()));
+    }
+
 }
