@@ -35,6 +35,15 @@ public class OrderBook {
         queues.put(Side.SELL, sellMap);
     }
 
+    public void handleIcebergOrder(Order matchingOrder, OrderBook orderBook) {
+        if (matchingOrder instanceof IcebergOrder icebergOrder) {
+            icebergOrder.decreaseQuantity(matchingOrder.getQuantity());
+            icebergOrder.replenish();
+            if (icebergOrder.getQuantity() > 0)
+                orderBook.enqueue(icebergOrder);
+        }
+    }
+
     public void enqueue(Order order) {
         List<Order> queue = getQueue(order.getSide(), order.isInactive());
         ListIterator<Order> it = queue.listIterator();

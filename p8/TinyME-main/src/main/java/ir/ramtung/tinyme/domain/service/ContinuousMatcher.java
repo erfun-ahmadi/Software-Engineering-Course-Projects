@@ -35,12 +35,7 @@ public class ContinuousMatcher {
             if (newOrder.getQuantity() >= matchingOrder.getQuantity()) {
                 newOrder.decreaseQuantity(matchingOrder.getQuantity());
                 orderBook.removeFirst(matchingOrder.getSide());
-                if (matchingOrder instanceof IcebergOrder icebergOrder) {
-                    icebergOrder.decreaseQuantity(matchingOrder.getQuantity());
-                    icebergOrder.replenish();
-                    if (icebergOrder.getQuantity() > 0)
-                        orderBook.enqueue(icebergOrder);
-                }
+                orderBook.handleIcebergOrder(matchingOrder, orderBook);
             } else {
                 matchingOrder.decreaseQuantity(newOrder.getQuantity());
                 newOrder.makeQuantityZero();
@@ -99,16 +94,20 @@ public class ContinuousMatcher {
             }
             order.getSecurity().getOrderBook().enqueue(result.remainder());
         }
-        if (!result.trades().isEmpty()) {
-            for (Trade trade : result.trades()) {
-                trade.getBuy().getShareholder().incPosition(trade.getSecurity(), trade.getQuantity());
-                trade.getSell().getShareholder().decPosition(trade.getSecurity(), trade.getQuantity());
-            }
-        }
+        managePositionForTrades(result.trades());
         matchResults.add(result);
         activator(result);
         executeActivates(result);
         return matchResults;
+    }
+
+    private static void managePositionForTrades(LinkedList<Trade> trades) {
+        if (!trades.isEmpty()) {
+            for (Trade trade : trades) {
+                trade.getBuy().getShareholder().incPosition(trade.getSecurity(), trade.getQuantity());
+                trade.getSell().getShareholder().decPosition(trade.getSecurity(), trade.getQuantity());
+            }
+        }
     }
 
     private int getSumOfTradesQuantities(LinkedList<Trade> trades) {
