@@ -3,6 +3,7 @@ package ir.ramtung.tinyme.domain;
 import ir.ramtung.tinyme.config.MockedJMSTestConfig;
 import ir.ramtung.tinyme.domain.entity.*;
 import ir.ramtung.tinyme.domain.service.OrderHandler;
+import ir.ramtung.tinyme.domain.service.updateOpeningPriceWithNewOrderOperations;
 import ir.ramtung.tinyme.domain.service.AuctionMatcher;
 import ir.ramtung.tinyme.messaging.EventPublisher;
 import ir.ramtung.tinyme.messaging.Message;
@@ -21,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
 import org.mockito.ArgumentCaptor;
+
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -52,6 +54,7 @@ class AuctionStateTest {
     private Broker broker2;
     private OrderBook orderBook;
     private AuctionMatcher auctionMatcher;
+    private updateOpeningPriceWithNewOrderOperations uopwnoo;
 
     @BeforeEach
     void setup() {
@@ -73,6 +76,7 @@ class AuctionStateTest {
 
         orderBook = security.getOrderBook();
         auctionMatcher = new AuctionMatcher();
+        uopwnoo = new updateOpeningPriceWithNewOrderOperations();
 
         List<Order> orders = Arrays.asList(
                 Order.builder().orderId(1).security(security).side(SELL).quantity(304).price(15700).
@@ -198,7 +202,8 @@ class AuctionStateTest {
                 0, 0, 0, false));
         assertThat(broker2.getCredit()).isEqualTo(100_000);
         assertThat(orderBook.findByOrderId(Side.SELL, 5, false).getPrice()).isEqualTo(16000);
-        int openPrice = auctionMatcher.findOpeningPrice(security);
+        List<Integer> tradableQuantityOpenningPrice = uopwnoo.findOpeningPrice(security , auctionMatcher.getTradableQuantity());
+        int openPrice = tradableQuantityOpenningPrice.get(1).intValue();
         assertThat(openPrice).isEqualTo(15800);
     }
 
@@ -210,7 +215,8 @@ class AuctionStateTest {
                 0, 0, 0, false));
         assertThat(broker1.getCredit()).isEqualTo(153_300);
         assertThat(orderBook.findByOrderId(Side.BUY, 10, false).getPrice()).isEqualTo(15000);
-        int openPrice = auctionMatcher.findOpeningPrice(security);
+        List<Integer> tradableQuantityOpenningPrice = uopwnoo.findOpeningPrice(security , auctionMatcher.getTradableQuantity());
+        int openPrice = tradableQuantityOpenningPrice.get(1).intValue();
         assertThat(openPrice).isEqualTo(15450);
     }
 
@@ -272,7 +278,7 @@ class AuctionStateTest {
         security.setLastTradePrice(10000);
         auctionMatcher.updateOpeningPriceWithNewOrder(newOrder);
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2140);
-        auctionMatcher.findOpeningPrice(security);
+        uopwnoo.findOpeningPrice(security , auctionMatcher.getTradableQuantity());
         assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(2140);
     }
 
@@ -290,7 +296,7 @@ class AuctionStateTest {
     void calculating_open_price_with_two_candidate_closest_to_last_trade_price_successful() {
         security.setLastTradePrice(10000);
         LinkedList<Integer> prices = new LinkedList<>(Arrays.asList(1005, 9995, 9990, 10010));
-        int bestOpenPrice = auctionMatcher.findClosestToLastTradePrice(prices, security);
+        int bestOpenPrice = uopwnoo.findClosestToLastTradePrice(prices, security);
         assertThat(bestOpenPrice).isEqualTo(9995);
     }
 
@@ -391,7 +397,8 @@ class AuctionStateTest {
                 0, 0, 0, false));
         assertThat(broker2.getCredit()).isEqualTo(100_000);
         assertThat(orderBook.findByOrderId(Side.SELL, 5, false).getQuantity()).isEqualTo(100);
-        int openPrice = auctionMatcher.findOpeningPrice(security);
+        List<Integer> tradableQuantityOpenningPrice = uopwnoo.findOpeningPrice(security , auctionMatcher.getTradableQuantity());
+        int openPrice = tradableQuantityOpenningPrice.get(1).intValue();
         assertThat(openPrice).isEqualTo(15700);
     }
 
@@ -403,15 +410,18 @@ class AuctionStateTest {
                 0, 0, 0, false));
         assertThat(broker1.getCredit()).isEqualTo(258200);
         assertThat(orderBook.findByOrderId(Side.BUY, 10, false).getQuantity()).isEqualTo(55);
-        int openPrice = auctionMatcher.findOpeningPrice(security);
+        List<Integer> tradableQuantityOpenningPrice = uopwnoo.findOpeningPrice(security , auctionMatcher.getTradableQuantity());
+        int openPrice = tradableQuantityOpenningPrice.get(1).intValue();
         assertThat(openPrice).isEqualTo(15700);
     }
 
     @Test
     void new_stop_limit_order_changes_opening_price_and_tradable_quantity() {
-        int firstOpeningPrice = auctionMatcher.findOpeningPrice(security);
+        List<Integer> tradableQuantityOpenningPrice = uopwnoo.findOpeningPrice(security , auctionMatcher.getTradableQuantity());
+        int firstOpeningPrice = tradableQuantityOpenningPrice.get(1).intValue();
+        int tradableQuantity = tradableQuantityOpenningPrice.get(0).intValue();
         assertThat(firstOpeningPrice).isEqualTo(15700);
-        assertThat(auctionMatcher.getTradableQuantity()).isEqualTo(1840);
+        assertThat(tradableQuantity).isEqualTo(1840);
         Order newOrder = Order.builder().orderId(100).security(security).side(BUY).quantity(100).price(15840).
                 minimumExecutionQuantity(0).broker(broker1).shareholder(shareholder).
                 entryTime(LocalDateTime.now()).status(OrderStatus.NEW).stopPrice(15890).inactive(false).build();
@@ -464,7 +474,8 @@ class AuctionStateTest {
         orderHandler.handleDeleteOrder(new DeleteOrderRq(1, security.getIsin(), Side.BUY, 6));
         verify(eventPublisher).publish(new OrderDeletedEvent(1, 6));
         assertThat(broker2.getCredit()).isEqualTo(5630000);
-        int openPrice = auctionMatcher.findOpeningPrice(security);
+        List<Integer> tradableQuantityOpenningPrice = uopwnoo.findOpeningPrice(security , auctionMatcher.getTradableQuantity());
+        int openPrice = tradableQuantityOpenningPrice.get(1).intValue();
         assertThat(openPrice).isEqualTo(15700);
     }
 
@@ -474,7 +485,8 @@ class AuctionStateTest {
         orderHandler.handleDeleteOrder(new DeleteOrderRq(1, security.getIsin(), Side.SELL, 1));
         verify(eventPublisher).publish(new OrderDeletedEvent(1, 1));
         assertThat(broker1.getCredit()).isEqualTo(100_000);
-        int openPrice = auctionMatcher.findOpeningPrice(security);
+        List<Integer> tradableQuantityOpenningPrice = uopwnoo.findOpeningPrice(security , auctionMatcher.getTradableQuantity());
+        int openPrice = tradableQuantityOpenningPrice.get(1).intValue();
         assertThat(openPrice).isEqualTo(15500);
     }
 }
